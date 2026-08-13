@@ -600,6 +600,26 @@ function love.load()
   T.equal(reflowed.displayLines[1],
     "I LIKE BUGS, SO I'M GOING BACK TO TRAIN.",
     "dialogue reflows source control-code lines into available width")
+  local hyphenated = DialogueLayout.measure({
+    outer={x=160,y=80,w=120,h=160}, viewport={x=0,y=0,w=640,h=360},
+    safeArea={x=0,y=0,w=640,h=360}, scale=1,
+  }, {
+    kind="dialogue", anchor="bottom", reflow=true,
+    lines={"THIS WORD-", "CONTINUES WITHOUT A DASH"},
+  }, fakeFont, "comfortable", {})
+  local hyphenatedText = table.concat(hyphenated.displayLines, "")
+  T.check(not hyphenatedText:find("WORD%-CONTINUES"),
+    "reflow removes source line hyphenation markers")
+  local longWord = DialogueLayout.measure({
+    outer={x=160,y=80,w=120,h=160}, viewport={x=0,y=0,w=640,h=360},
+    safeArea={x=0,y=0,w=640,h=360}, scale=1,
+  }, {
+    kind="dialogue", anchor="bottom", reflow=true,
+    lines={"SUPERCALIFRAGILISTIC"},
+  }, fakeFont, "comfortable", {})
+  T.check(#longWord.displayLines > 1
+    and not table.concat(longWord.displayLines, ""):find("%-"),
+    "long words hard-wrap without inserting hyphens")
 
   local Dropdown = loadModule("components.dropdown")
   local dropdown = Dropdown.new()
