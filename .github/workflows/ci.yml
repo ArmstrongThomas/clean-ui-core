@@ -1,0 +1,28 @@
+name: Core checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Install LÖVE and headless display
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y love xvfb
+
+      - name: Run core tests
+        run: |
+          cp -R src tests/src
+          trap 'rm -rf tests/src' EXIT
+          xvfb-run --auto-servernum love tests
