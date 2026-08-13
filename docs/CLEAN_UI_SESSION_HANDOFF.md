@@ -29,9 +29,9 @@ safe work sequence.
 
 | Repository | Role | Current state |
 |---|---|---|
-| `G:\dev\misc\clean-ui-core` | Shared, non-installable runtime | Substantial modular implementation and tests; implementation files are currently untracked |
-| `G:\dev\misc\gen2-clean-ui` | Installable Gold product | Active product; foundation and 0.2 families integrated, 0.3 families implemented but not yet wired |
-| `G:\dev\misc\gen1-clean-ui` | Installable RBY product | Native-safe scaffold only; intentionally waiting behind Gen2 |
+| `G:\dev\misc\clean-ui-core` | Shared, non-installable runtime | Initial implementation commit `d6680a9`; clean local `main`, no release tag yet |
+| `G:\dev\misc\gen2-clean-ui` | Installable Gold product | Initial product commit `d06c1bf`; foundation and 0.2 families integrated, 0.3 families implemented but not yet wired |
+| `G:\dev\misc\gen1-clean-ui` | Installable RBY product | Initial scaffold commit `e2778d7`; clean local `main`, intentionally waiting behind Gen2 |
 | `G:\dev\misc\gen1-modern-ui` | Retired legacy product | Clean retirement release at 0.9.1; Gold prototype retained in a stash and external backups |
 | `G:\dev\misc\gen1recomp-grandmas-kitchen` | Local patched host for sandbox/API development | Dirty `clean-ui/sandbox-audit` branch with required host APIs and local Gold launcher |
 
@@ -62,11 +62,11 @@ safe work sequence.
 Path: `G:\dev\misc\clean-ui-core`
 
 - Branch: `main`
-- HEAD: `95a0f10`
+- HEAD: `d6680a9`
 - Core version in source: `0.1.0-alpha.10`
-- Only the authoritative plan commit exists. The implementation tree is still
-  untracked, including source, tests, examples, scripts, README, license, and
-  supporting documentation.
+- The modular implementation, tests, examples, scripts, README, license, and
+  supporting documentation are committed locally. The core has not been tagged
+  or published.
 - The implementation is deliberately modular: 70 shipped Lua files rather
   than a monolithic `main.lua`.
 
@@ -99,17 +99,18 @@ Normal commands from the core root:
 .\scripts\verify_source_tree.ps1
 ```
 
-The product core locks currently identify commit
-`95a0f10cfea08f4c5340d2d220bc34788fa163ef` and contain hashes for the current
-dirty source snapshot. That is acceptable for local development only. Before
-any release, commit/tag core intentionally and regenerate both product locks
-against the real immutable core commit and tag.
+Both product core locks now identify the immutable local core commit
+`d6680a93b524773d2822dc3c287eb9b780d993f0` and contain hashes for the committed
+runtime snapshot. The core is still untagged and local-only. Before any release,
+create the intentional core tag and regenerate both product locks against the
+official tagged core commit and tag.
 
 ## `gen2-clean-ui`
 
 Path: `G:\dev\misc\gen2-clean-ui`
 
-- The repository has no first commit yet; the entire project is untracked.
+- The initial product implementation is committed locally at `d06c1bf`; the
+  repository has no remote or release tag yet.
 - Manifest version: `0.1.0`.
 - Manifest is Gen2-only, API 2, overhaul profile, priority 100,
   `affects_link: false`, experimental, and conflicts with `gen1_modern_ui`.
@@ -270,7 +271,8 @@ families; verify this from source rather than assuming it.
 
 Path: `G:\dev\misc\gen1-clean-ui`
 
-- The repository has no first commit; the scaffold is untracked.
+- The initial native-safe scaffold is committed locally at `e2778d7`; the
+  repository has no remote or release tag yet.
 - It is Gen1-only, modular, sandbox-ready, and native-safe.
 - No broad production Gen1 screen implementation has started.
 - Gen1 Battle Wide remains deferred and cannot suppress native battle or child
