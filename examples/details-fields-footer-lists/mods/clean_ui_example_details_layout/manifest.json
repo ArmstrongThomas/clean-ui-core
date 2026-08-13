@@ -1,0 +1,25 @@
+{
+  "id": "clean_ui_example_details_layout",
+  "name": "Clean UI Example - Details Fields and Footer Lists",
+  "version": "0.1.0",
+  "api": 2,
+  "entry": "main.lua",
+  "profile": "content",
+  "games": [
+    "gen1",
+    "gen2"
+  ],
+  "game_version": "0.0.0-dev || >=0.1.79 <2.0.0",
+  "category": "UI",
+  "priority": 0,
+  "dependencies": [],
+  "optional_dependencies": [
+    "gen1_clean_ui@>=0.1.0 <2.0.0",
+    "gen2_clean_ui@>=0.1.0 <2.0.0"
+  ],
+  "conflicts": [],
+  "incompatible": [],
+  "experimental": true,
+  "affects_link": false,
+  "description": "Demonstrates fitted custom fields and bottom-anchored footer lists."
+}

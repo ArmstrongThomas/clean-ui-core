@@ -1,0 +1,5 @@
+/dist/
+/artifacts/
+/.test-output/
+*.zip
+
