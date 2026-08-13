@@ -8,6 +8,21 @@ before changing code. The plan owns product scope and architecture; this file
 records the current workspace state, what is actually integrated, and the next
 safe work sequence.
 
+## Latest session update (2026-08-13)
+
+- Content-driven menu sizing now measures the active font against both row
+  columns and plain detail panels, so Continue/save summaries and other
+  text-heavy menus widen before labels or values are ellipsized.
+- Shared dialogue extraction keeps native continuation-only pauses inside one
+  reflowable Clean UI message while preserving true page breaks, typewriter
+  timing, and source-owned input.
+- The real Gold route smoke reached the Pryce gym milestone (`11.44`) with
+  the Clean UI opt-in enabled; the original `slot1.lua` save was restored from
+  `G:\dev\misc\gold-route-slot1-backup.lua` afterward.
+- Focused verification is green: core `208` checks, product shared UI `45`
+  checks, full product Lua suite, responsive NAV/M and battle matrices,
+  scaffold, core lock, and sandbox gates.
+
 ## Working rules
 
 - Work under `G:\dev\misc`.
@@ -29,8 +44,8 @@ safe work sequence.
 
 | Repository | Role | Current state |
 |---|---|---|
-| `G:\dev\misc\clean-ui-core` | Shared, non-installable runtime | Initial implementation commit `d6680a9`; clean local `main`, no release tag yet |
-| `G:\dev\misc\gen2-clean-ui` | Installable Gold product | Initial product commit `d06c1bf`; foundation and 0.2 families integrated, 0.3 families implemented but not yet wired |
+| `G:\dev\misc\clean-ui-core` | Shared, non-installable runtime | Core runtime and tests are committed locally; current working tree adds responsive NAV/M widths and stable battle presentation |
+| `G:\dev\misc\gen2-clean-ui` | Installable Gold product | Active product; foundation, 0.2, and 0.3 families are integrated and aggregate-tested |
 | `G:\dev\misc\gen1-clean-ui` | Installable RBY product | Initial scaffold commit `e2778d7`; clean local `main`, intentionally waiting behind Gen2 |
 | `G:\dev\misc\gen1-modern-ui` | Retired legacy product | Clean retirement release at 0.9.1; Gold prototype retained in a stash and external backups |
 | `G:\dev\misc\gen1recomp-grandmas-kitchen` | Local patched host for sandbox/API development | Dirty `clean-ui/sandbox-audit` branch with required host APIs and local Gold launcher |
@@ -43,17 +58,26 @@ safe work sequence.
   runtime mod dependency.
 - The two products have independent updater-compatible repositories and one
   release ZIP each.
-- This is a clean break. Do not import legacy settings or pins and do not ship
-  V1/V2 compatibility aliases.
+- Do not import legacy settings or pins or create a loader-level product alias.
+  Product-scoped V1/V2 compatibility facades may preserve existing presentation
+  contracts while source mods migrate to V3.
 - Gen2 non-battle UI is the first implementation priority. Gen1 follows after
   Gen2 is stable.
 - Plain Pixel is the default and may only use authored whole steps 1x, 2x, 3x,
   or 4x.
 - Stable envelopes never resize while users change pages, Pokemon, pockets,
   selections, modes, or embedded prompts.
+- NAV chooses and locks a 320–440 logical-pixel width from its required content
+  when a view opens; later row/pin changes never widen it.
+- Ordinary M list menus choose and lock a 320–600 logical-pixel width from
+  their content while retaining the full 420-pixel logical height; rich
+  detail/sprite menus remain full-width.
 - Dropdowns, Mod Menus, and Start-menu pinning are foundation features.
-- Gold battle and menus opened over Gold battle remain native through Gen2
-  1.0.
+ - Stable Gold battle decision/message frames use the Clean UI responsive battle
+   presenter with the native Gen II diagonal (enemy status upper-left/enemy
+   sprite upper-right, player sprite lower-left/player status lower-right);
+   transitions, animations, and battle-owned child stacks remain native/deferred
+   through Gen2 1.0.
 - Gen1 battle is a later wide-only 640x360 presenter. Three-dimensional battle
   HUD ownership remains external.
 
@@ -62,7 +86,7 @@ safe work sequence.
 Path: `G:\dev\misc\clean-ui-core`
 
 - Branch: `main`
-- HEAD: `d6680a9`
+- HEAD: `96be904` (dirty working tree preserves the current local roadmap work)
 - Core version in source: `0.1.0-alpha.10`
 - The modular implementation, tests, examples, scripts, README, license, and
   supporting documentation are committed locally. The core has not been tagged
@@ -72,7 +96,8 @@ Path: `G:\dev\misc\clean-ui-core`
 
 Implemented shared capabilities include:
 
-- design tokens, themes, measured layout, safe areas, and stable envelopes;
+- design tokens, themes, measured layout, safe areas, stable envelopes, and
+  content-driven NAV/M widths;
 - whole-step Plain Pixel sizing and large-monitor AUTO scaling;
 - controlled dropdowns with groups, disabled options, scrolling, focus,
   pointer/touch handling, and edge flipping;
@@ -87,7 +112,7 @@ Implemented shared capabilities include:
 Fresh verification on 2026-08-13:
 
 - syntax, dependency, unit, integration, contracts, visual, and matrix suites
-  each completed with `167 checks passed`;
+  each completed with `204 checks passed`;
 - source-tree verification passed;
 - sandbox verification passed for all 70 shipped Lua files.
 
@@ -99,65 +124,54 @@ Normal commands from the core root:
 .\scripts\verify_source_tree.ps1
 ```
 
-Both product core locks now identify the immutable local core commit
-`d6680a93b524773d2822dc3c287eb9b780d993f0` and contain hashes for the committed
-runtime snapshot. The core is still untagged and local-only. Before any release,
-create the intentional core tag and regenerate both product locks against the
-official tagged core commit and tag.
+The product lock currently points to the development core snapshot identified
+as `0.1.0-alpha.10` at `c3ead39e4daf3b03f281e0d58d23b0a6b555b96f`.
+The source core changes remain uncommitted and the lock is not an immutable
+public release. Before any release, create the intentional core tag and
+regenerate both product locks against that official tagged commit and tag.
 
 ## `gen2-clean-ui`
 
 Path: `G:\dev\misc\gen2-clean-ui`
 
-- The initial product implementation is committed locally at `d06c1bf`; the
-  repository has no remote or release tag yet.
+- The product repository is on local HEAD `031cb3c`; its current working tree
+  contains the uncommitted Gen2 integration, responsive, battle, and release
+  documentation work. It has no release tag yet.
 - Manifest version: `0.1.0`.
 - Manifest is Gen2-only, API 2, overhaul profile, priority 100,
   `affects_link: false`, experimental, and conflicts with `gen1_modern_ui`.
 - The host floor is deliberately `0.0.0-dev`, so release building remains
   blocked until a tagged official host includes and passes the required APIs.
 - `main.lua` is a tiny modular bootstrap.
-- Vendored core is `0.1.0-alpha.10` and its lock currently points at the core
-  plan commit plus the hashed development snapshot described above.
+- Vendored core is `0.1.0-alpha.10` and its lock currently points at the
+  development snapshot described above.
 
 ### Actually integrated and locally testable
 
-These exact production IDs are registered and can participate in fail-open
-replacement during local Gold gameplay:
+All 37 supported production records are registered and can participate in
+fail-open replacement during local Gold gameplay. The exact split remains in
+the product's `docs/GEN2_CONTRACTS.md`; stable battle frames are included,
+while battle transitions, animations, and child-owned stacks remain native or
+deferred.
 
-- `Gen2MainMenu`
-- `Gen2StartMenu`
-- `Gen2OptionsMenu`
-- `Gen2PackMenu`
-- `Gen2PartyMenu`
-- `Gen2SummaryMenu`
-- `Gen2PokedexMenu`
-- `Gen2TrainerCard`
-- `Gen2SaveMenu`
-- `Gen2NamingScreen`
-- `Gen2CenterPcMenu`
-- `Gen2PcMenu`
-- `Gen2BoxMenu`
-- `Gen2ItemPcMenu`
-- shared `TextBox` and `ChoiceBox` flows
-
-The core shell, clean settings, dropdowns, Mod Menus/pinning, API V3 host, and
-UI Gallery are also active. The production Gallery currently has 59
-model-ready fixtures: 12 foundation/shared fixtures and 47 gameplay/storage
-fixtures.
+The core shell, clean settings, dropdowns, Mod Menus/pinning, API V3 host,
+Modern UI V1/V2 compatibility facade, and UI Gallery are also active.
 
 Fresh aggregate verification on 2026-08-13:
 
-- Lua syntax: 173 checks;
-- contracts: 697 checks;
+- Lua syntax: 178 files;
+- contracts: 714 checks;
 - foundation: 117 checks;
-- shared UI: 43 checks;
+- shared UI: 44 checks;
 - Party/Summary: 53 checks;
 - Pack/Pokedex/Trainer/Save: 65 checks;
 - Naming/storage: 112 checks;
 - production Gallery: 779 checks;
-- product smoke, core lock, scaffold, and sandbox scans all passed;
-- sandbox scan covered 143 product and vendored-core Lua files.
+- Modern UI compatibility: 33 checks;
+- Pokegear/Map Radio: 165; services/commerce: 240; mail/specialty: 412;
+- integrated Gallery: 174; production Gallery: 779;
+- responsive NAV/M: 34,325; responsive battle: 21,859;
+- product smoke, core lock, scaffold, and sandbox scans all passed.
 
 Run from the product root:
 
@@ -172,100 +186,57 @@ python ..\gen1recomp-grandmas-kitchen\tools\modkit.py gen2check `
 dynamic/literal module names. Full standalone `modkit validate` still needs a
 standalone LuaJIT executable; LOVE's embedded LuaJIT is not that executable.
 
-### Implemented and focused-tested, but not integrated
+### Current Gen2 state
 
-The following 0.3 work exists in source and passes its focused suites, but is
-intentionally absent from `src/product.lua`, production Gallery conversion,
-and `tests/run_all.lua`. These screens therefore remain native in real
-gameplay right now.
+The following status is current:
 
-1. Pokegear and Map Radio
+- All 37 supported records (foundation, 0.2, and 0.3 plus stable battle) are
+  registered with production model adapters and presenters; Hall of Fame is
+  viewer-only.
+- The 0.3 focused suites are part of `tests/run_all.lua`: Pokegear/MapRadio
+  165 checks, services/commerce 240, mail/specialty 412, plus integrated
+  Gallery and production Gallery checks.
+- The aggregate suite passes syntax 178 files, contracts 714, foundation 117,
+  shared 44, product smoke, Party/Summary 53, Pack/Dex/Trainer/Save 65,
+  naming/storage 112, Pokegear 165, services 240, mail 412, integrated
+  Gallery 174, production Gallery 779, responsive NAV/M 34,325, and
+  responsive battle 21,859 checks.
+- Mart, Mail Compose, and Trade use the host's exact zero-based ranges.
+  `gold.CallerBox` remains explicitly native/pending until an exact public
+  identity seam exists.
+- The next 1.0 work is extending real-route smoke beyond the Lake of Rage
+  checkpoint, closing any newly exposed host blockers, and release-host
+  readiness; the required responsive viewport/font matrices are green.
+- The synthetic production-path NAV/M matrix passes 34,325 checks and the
+  battle matrix passes 21,859 checks across short landscape, portrait, desktop,
+  ultrawide, 4K, and 5K settings, including the native diagonal card/sprite
+  order plus metadata-rich gender/condition/catch/EXP card rendering. The real
+  Gold smoke has reached the Lake of
+  Rage/Lance milestone (`10.34`) with zero teleport shortcuts; remaining route
+  work is coverage beyond that checkpoint and any newly exposed host blockers.
+- Real-gameplay smoke is sampled integration evidence, not a claim that every
+  possible popup has been encountered. The product contract/catalog, focused
+  presenter suites, Gallery, and visual smoke remain the authoritative coverage
+  for integrated Clean UI surfaces; native-by-design and deferred records stay
+  explicitly outside replacement coverage.
 
-   - `Gen2Pokegear`
-   - `Gen2MapRadio`
-   - 165 focused checks pass.
-   - Covers the strip, clock, map, Fly, radio, phone lists/submenus/calls,
-     no-signal states, and wall radio.
-   - `CallerBox` must remain native because the current public host seam does
-     not expose a proven exact identity for it.
+### Completed integration history
 
-2. Services and commerce
+The former 0.3 “pre-integration” checklist is historical only. Pokegear/Map
+Radio, services/commerce, and mail/specialty families are now registered in
+`src/product.lua`, routed through production Gallery conversion, and included
+in `tests/run_all.lua`. Their focused suites pass 165, 240, and 412 checks.
+The exact current supported/native/deferred split is authoritative in the
+Gen2 product's `docs/GEN2_CONTRACTS.md` and `docs/RELEASE_STATUS.md`.
 
-   - `Gen2MartMenu`
-   - `Gen2ScriptMenu`
-   - `Gen2BankOfMom`
-   - `Gen2ContestMenu`
-   - `Gen2DayCareMenu`
-   - `Gen2HeldItemMenu`
-   - `Gen2ElevatorMenu`
-   - `Gen2MoveDeleter`
-   - 240 focused checks pass.
+The three zero-based host validators (Mart, Mail Compose, and Trade) and their
+regressions are complete. `gold.CallerBox`, battle transitions, animation-heavy
+states, and unproven child stacks remain explicit native/deferred seams.
 
-3. Mail and specialty displays
-
-   - `Gen2MailCompose`
-   - `Gen2MailMenu`
-   - `Gen2MailRead`
-   - `Gen2MailboxMenu`
-   - `Gen2DecorationMenu`
-   - `Gen2TradeMenu`
-   - `Gen2NamePick`
-   - `Gen2InitClock`
-   - `Gen2Diploma`
-   - `Gen2PhotoStudio`
-   - `Gen2UnownPrinter`
-   - `Gen2HallOfFame`
-   - 412 focused checks pass.
-   - Hall of Fame support is viewer/display only. Induction remains native.
-   - Trade animation and unproven party-picker stacks remain native.
-
-### Required fixes before integrating 0.3
-
-Correct three central contract validators in:
-
-`G:\dev\misc\gen2-clean-ui\mods\gen2_clean_ui\src\contracts\families\services.lua`
-
-- `Gen2MartMenu`: accept zero-based `martId >= 0`; the current validator
-  incorrectly requires `>= 1`.
-- `Gen2MailCompose`: accept host coordinates `row = 0..5` and `col = 0..9`;
-  the current validator incorrectly expects one-based values.
-- `Gen2TradeMenu`: accept host IDs `0..5`; the current validator incorrectly
-  requires `>= 1`.
-
-Add exact host-shape regression cases to the aggregate contract tests before
-wiring any presenter.
-
-Also review the shared contract metadata for `gold.CallerBox`. It currently
-looks supported/pending, but production must describe it as native/pending
-with an explicit missing-identity reason unless the host first gains a proven
-public exact-class seam.
-
-### Recommended next work sequence
-
-1. Fix the three zero-based validators and add aggregate regression tests.
-2. Run the existing aggregate and all three focused suites.
-3. Extend `src/product.lua` to load/register:
-   - Pokegear and MapRadio models/presenters;
-   - services/commerce models/presenters;
-   - mail/specialty models/presenters;
-   - all corresponding production IDs and Gallery fixtures.
-4. Extend `src/gallery/catalog.lua` conversion routing so every new fixture
-   uses the same production presenter as gameplay.
-5. Add these focused runners to `tests/run_all.lua`:
-   - `run_pokegear_tests.lua`
-   - `run_services_commerce_tests.lua`
-   - `run_mail_specialty_tests.lua`
-6. Update README and Gen2 contract documentation to distinguish newly
-   integrated presenters from native/deferred ones.
-7. Run aggregate tests, focused tests, scaffold, sandbox, core-lock, and
-   `gen2check --strict --notes`.
-8. Smoke-test real Gold routes using the local launcher. Do not suppress a
-   source screen unless its complete visible stack renders successfully.
-
-Inspect converter signatures before wiring. Existing modules are expected to
-use `Presenter.convert(model)` for Pokegear/MapRadio and
-`Presenters.convert(screenId, model)` for grouped services and mail/specialty
-families; verify this from source rather than assuming it.
+The next work is real-route coverage beyond the Lake of Rage checkpoint and
+release-host readiness. Preserve the full vertical envelopes when narrowing
+menus and keep rich detail/sprite surfaces wide when their measured content
+requires it.
 
 ## `gen1-clean-ui`
 
@@ -390,9 +361,9 @@ create a second copy or junction under AppData: duplicate `gen2_clean_ui` IDs
 would make test results ambiguous. A previous attempt to create an AppData
 junction was blocked and did not create anything.
 
-Only the integrated screen list above is expected to modernize in this local
-build. The three 0.3 groups should remain native until their central validators
-are corrected and integration is complete.
+All supported records in the current product catalog are expected to
+participate in local fail-open replacement when their complete visible stack is
+proven. Native/deferred records and unsupported child stacks must remain native.
 
 ## Definition of a safe continuation
 
@@ -417,14 +388,14 @@ G:\dev\misc\clean-ui-core\docs\CLEAN_UI_REWORK_PLAN.md
 G:\dev\misc\clean-ui-core\docs\CLEAN_UI_SESSION_HANDOFF.md
 
 Treat the handoff's integrated-vs-implemented distinction as authoritative.
-Continue Gen2 first. The immediate task is to fix the three zero-based Gen2
-validators (Mart, Mail Compose, Trade), add exact host-shape regression tests,
-then safely integrate the focused-tested Pokegear/MapRadio, services/commerce,
-and mail/specialty families into product composition, production Gallery
-conversion, and tests/run_all.lua. Keep CallerBox native without a proven exact
-host identity. Preserve fail-open behavior and complete-stack suppression
-proofs. Run all aggregate, focused, sandbox, core-lock, scaffold, gen2check,
-and relevant host API tests. Update docs to reflect what is truly active.
+Continue Gen2 first. The immediate task is to extend real Gold route coverage
+beyond the Lake of Rage checkpoint, investigate any newly exposed host
+blockers, and prepare the official-host release gate. Keep CallerBox, battle
+transitions/animations, and unproven child stacks native without a proven
+identity/timing seam. Preserve fail-open behavior and complete-stack
+suppression proofs. Run all aggregate, focused, responsive, sandbox, core-lock,
+scaffold, gen2check, and relevant host API tests. Update docs to reflect what
+is truly active.
 
 Do not commit, push, tag, publish, create remotes, archive repositories, delete
 stashes/backups, or overwrite unrelated dirty work. Use safe local tools without

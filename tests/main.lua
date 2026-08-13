@@ -211,7 +211,7 @@ function love.load()
   T.check(settingsScreen and fakeStack:top() == settingsScreen,
     "settings opens through the registered product shell")
   T.equal(settingsScreen.model:preset(), "NAV",
-    "settings keeps the fixed tall NAV envelope")
+    "settings keeps the tall NAV envelope")
   local rows = runtime.shell:rows(settingsScreen)
   T.equal(rows[1].id, "theme", "settings uses the product option schema")
   settingsScreen.model.layout = {
@@ -310,8 +310,19 @@ function love.load()
 
   local Presets = loadModule("design.presets")
   T.equal(Presets.NAV.w, 440, "NAV width is stable")
+  T.equal(Presets.NAV.minW, 320, "NAV has a compact minimum width")
   T.equal(Presets.NAV.h, 560, "NAV height is stable")
-  T.equal(Presets.BATTLE_WIDE.w, 640, "battle is wide-only")
+  T.equal(Presets.M.minW, 320, "M menus have a compact minimum width")
+  T.equal(Presets.M.h, 420, "M menus retain their stable logical height")
+  T.equal(Presets.M.widthMode, "content",
+    "ordinary M menus opt into content-driven width")
+  T.equal(Presets.BATTLE_WIDE.w, 640, "legacy wide battle width is stable")
+  T.equal(Presets.BATTLE.w, 640, "battle landscape width is stable")
+  T.equal(Presets.BATTLE.h, 360, "battle landscape height is stable")
+  T.equal(Presets.BATTLE.portrait.w, 360,
+    "battle portrait width is phone-friendly")
+  T.equal(Presets.BATTLE.portrait.h, 640,
+    "battle portrait height preserves vertical staging")
 
   local FontPolicy = loadModule("text.font_policy")
   for _, size in ipairs({ 15, 30, 45, 60 }) do
@@ -330,6 +341,61 @@ function love.load()
   T.check(FontPolicy.validPlainPixelSize(large.value.font.physicalPx),
     "solver keeps Plain Pixel whole-step")
 
+  local battleLarge = Solver.solve({ preset = "BATTLE",
+    viewport = { x=0, y=0, w=5120, h=2880 },
+    safeArea = { x=0, y=0, w=5120, h=2880 }, uiSize = "auto",
+    textSize = "auto" })
+  T.check(battleLarge.ok and battleLarge.value.orientation == "landscape"
+    and battleLarge.value.scale > 1,
+    "battle grows as a landscape composition on 5K")
+  T.check(battleLarge.ok
+    and battleLarge.value.outer.x + battleLarge.value.outer.w <= 5120
+    and battleLarge.value.outer.y + battleLarge.value.outer.h <= 2880,
+    "5K battle envelope stays inside the monitor")
+
+  local battlePortrait = Solver.solve({ preset = "BATTLE",
+    viewport = { x=0, y=0, w=390, h=844 },
+    safeArea = { x=0, y=0, w=390, h=844 }, uiSize = "auto",
+    textSize = "auto" })
+  T.check(battlePortrait.ok
+    and battlePortrait.value.orientation == "portrait"
+    and battlePortrait.value.logical.w == 360
+    and battlePortrait.value.logical.h == 640,
+    "battle switches to the stacked portrait envelope on phones")
+
+  local BattleLayout = loadModule("presentation.battle_layout")
+  local battleFont = {
+    getHeight=function() return 15 end,
+    getWidth=function(_, value) return #tostring(value or "") * 8 end,
+  }
+  local battleModel = { kind="battle", actions={
+    { id="fight", label="FIGHT", sourceIndex=1 },
+    { id="pokemon", label="POKEMON", sourceIndex=2 },
+    { id="pack", label="PACK", sourceIndex=3 },
+    { id="run", label="RUN", sourceIndex=4 },
+  } }
+  local measuredBattle = BattleLayout.measure(battleLarge.value,
+    battleModel, battleFont, "comfortable")
+  T.equal(measuredBattle.orientation, "landscape",
+    "landscape battle layout records its orientation")
+  T.check(measuredBattle.enemySprite.h > 1
+    and measuredBattle.playerSprite.h > 1,
+    "landscape battle layout reserves real sprite stages")
+  T.check(measuredBattle.enemyCard.x < measuredBattle.enemySprite.x
+    and measuredBattle.playerSprite.x < measuredBattle.playerCard.x
+    and measuredBattle.enemyCard.y < measuredBattle.playerCard.y
+    and measuredBattle.enemySprite.y < measuredBattle.playerSprite.y,
+    "battle layout follows the native diagonal card/sprite order")
+  T.equal(measuredBattle.hitRegions[1].sourceIndex, 1,
+    "battle pointer geometry preserves action source indices")
+  local measuredPortrait = BattleLayout.measure(battlePortrait.value,
+    battleModel, battleFont, "comfortable")
+  T.equal(measuredPortrait.orientation, "portrait",
+    "portrait battle layout records its orientation")
+  T.check(measuredPortrait.panel.y + measuredPortrait.panel.h
+      <= measuredPortrait.inner.y + measuredPortrait.inner.h,
+    "portrait battle panel stays inside the safe envelope")
+
   local MenuLayout = loadModule("presentation.menu_layout")
   local measuredMenu = MenuLayout.measure({
     outer={x=0,y=0,w=400,h=300}, scale=1,
@@ -339,6 +405,123 @@ function love.load()
   }, { getHeight=function() return 15 end }, "comfortable")
   T.equal(measuredMenu.hitRegions[1].sourceIndex, 4,
     "menu pointer geometry preserves the native source row index")
+
+  local navModel = { preset="NAV", title="START KRIS", rows={
+    { label="POKEMON", right="" }, { label="PACK", right="" },
+  } }
+  local navBase = Solver.solve({ preset="NAV",
+    viewport={ x=0, y=0, w=1280, h=720 },
+    safeArea={ x=0, y=0, w=1280, h=720 }, uiSize="auto",
+    textSize="auto" })
+  local navFont = { getHeight=function() return 15 end,
+    getWidth=function(_, value) return #tostring(value or "") * 8 end }
+  local navWidth = MenuLayout.contentWidth(navBase.value, navModel,
+    navFont, "comfortable")
+  T.equal(navWidth, 320,
+    "production NAV menus use the compact width when content permits")
+  T.equal(navBase.value.logical.h, 560,
+    "production NAV menu width changes preserve vertical capacity")
+
+  local mBase = assert(Solver.solve({ preset="M",
+    viewport={ x=0, y=0, w=1280, h=720 },
+    safeArea={ x=0, y=0, w=1280, h=720 }, uiSize="auto",
+    textSize="auto" })).value
+  local mModel = { kind="menu", preset="M", title="OPTIONS",
+    description="A CHOOSE   B BACK", rows={
+      { label="TEXT SPEED", right="FAST" },
+      { label="BATTLE SCENE", right="ON" },
+      { label="SOUND", right="STEREO" },
+    } }
+  local mWidth = MenuLayout.contentWidth(mBase, mModel, navFont,
+    "comfortable")
+  T.check(mWidth < 600 and mWidth >= 320,
+    "ordinary M menus use content width when a full panel is unnecessary")
+  local longValueWidth = MenuLayout.contentWidth(mBase, {
+    kind="menu", preset="M", title="OPTIONS", description="A CHOOSE",
+    rows={{ label="MODE", right="VERY LONG SETTING VALUE" }},
+  }, navFont, "comfortable")
+  T.check(longValueWidth > mWidth,
+    "ordinary M menus grow for larger right-hand values")
+  local mNarrow = assert(Solver.solve({ preset="M",
+    viewport={ x=0, y=0, w=1280, h=720 },
+    safeArea={ x=0, y=0, w=1280, h=720 }, uiSize="auto",
+    textSize="auto", logicalWidth=mWidth })).value
+  T.equal(mNarrow.logical.h, 420,
+    "adaptive M width preserves its full logical height")
+  T.equal(mNarrow.outer.h, mBase.outer.h,
+    "adaptive M width never shortens the physical menu height")
+
+  local saveModel = { kind="menu", preset="M", title="CONTINUE",
+    description="A CONTINUE   B BACK", rows={{
+      label="CONTINUE", right="READY",
+    }}, details={
+      { label="PLAYER", value="GOLD" },
+      { label="BADGES", value="0" },
+      { label="POKEDEX", value="1" },
+      { label="TIME", value="0:00" },
+      { label="PLACE", value="NEW BARK TOWN" },
+    } }
+  local saveWidth = MenuLayout.contentWidth(mBase, saveModel,
+    navFont, "comfortable")
+  T.check(saveWidth > 320 and saveWidth <= 600,
+    "save summaries widen M menus for their two-column detail content")
+  local largeNavFont = { getHeight=function() return 30 end,
+    getWidth=function(_, value) return #tostring(value or "") * 16 end }
+  local largeSaveWidth = MenuLayout.contentWidth(mBase, saveModel,
+    largeNavFont, "comfortable")
+  T.check(largeSaveWidth >= saveWidth,
+    "M menu envelopes grow with the selected text size")
+  local saveLayout = MenuLayout.measure(
+    assert(Solver.solve({ preset="M",
+      viewport={ x=0, y=0, w=1280, h=720 },
+      safeArea={ x=0, y=0, w=1280, h=720 }, uiSize="auto",
+      textSize="auto", logicalWidth=saveWidth })).value,
+    saveModel, navFont, "comfortable")
+  T.check(saveLayout.detailRegion.w >= 100,
+    "save summary detail column reserves paired label/value space")
+
+  local Envelope = loadModule("layout.envelope")
+  local nav = Envelope.measure("NAV", { x=0, y=0, w=1280, h=720 },
+    { x=0, y=0, w=1280, h=720 }, "auto")
+  local narrowNav = Envelope.withLogicalWidth(nav, 320)
+  T.equal(narrowNav.logical.w, 320,
+    "content-driven NAV can use the compact logical width")
+  T.equal(narrowNav.logical.h, 560,
+    "content-driven NAV preserves the tall logical height")
+  T.check(narrowNav.outer.w < nav.outer.w
+      and narrowNav.outer.x > nav.outer.x,
+    "content-driven NAV narrows and recenters inside its safe area")
+
+  local ShellLayout = loadModule("shell.layout")
+  local shellState = {
+    view = "settings", layoutWidth = nil, layoutWidthContext = nil,
+    index = 1, scroll = 0,
+    preset = function() return "NAV" end,
+    ensureVisible = function() end,
+  }
+  local shell = {
+    settingsRevision = 0,
+    content = { title = function() return "SETTINGS" end },
+    core = { pipeline = { solver = { solve = Solver.solve } } },
+  }
+  function shell:setting() return "auto" end
+  local fakeFont = {
+    getHeight = function() return 15 end,
+    getWidth = function(_, value) return #tostring(value or "") * 8 end,
+  }
+  local shortShell = ShellLayout.measure(shell, shellState,
+    { x=0, y=0, w=1280, h=720 }, { x=0, y=0, w=1280, h=720 },
+    {{ label="OK", right="" }}, fakeFont)
+  T.equal(shortShell.logical.w, 320,
+    "short NAV shell content uses the compact minimum")
+  T.equal(shortShell.logical.h, 560,
+    "short NAV shell keeps the full tall logical height")
+  local lockedWidth = shortShell.logical.w
+  local longShell = ShellLayout.measure(shell, shellState,
+    { x=0, y=0, w=1280, h=720 }, { x=0, y=0, w=1280, h=720 },
+    {{ label=string.rep("LONG LABEL ", 60), right="" }}, fakeFont)
+  T.equal(longShell.logical.w, lockedWidth,
+    "NAV width stays locked when rows change during one open view")
 
   local richMenu = MenuLayout.measure({
     outer={x=0,y=0,w=760,h=540}, scale=1,
@@ -414,7 +597,54 @@ function love.load()
   local fakeTheme = { colors = {
     paper="#F4F1E5", raised="#E5E4DA", ink="#20242A",
     muted="#66727A", selection="#BCCAC4", focus="#356AC3",
+    gen2Accent="#9B6BCE",
   } }
+  local BattleRender = loadModule("presentation.battle_render")
+  local battlePrinted = {}
+  local battleGraphics = {}
+  function battleGraphics.setColor() end
+  function battleGraphics.setFont() end
+  function battleGraphics.print(value)
+    battlePrinted[#battlePrinted + 1] = tostring(value or "")
+  end
+  function battleGraphics.rectangle() end
+  function battleGraphics.polygon() end
+  function battleGraphics.line() end
+  local battleLayout = {
+    viewport={w=480,h=300},
+    outer={x=8,y=8,w=464,h=284},
+    field={x=20,y=20,w=440,h=150},
+    arena={x=20,y=20,w=440,h=150},
+    panel={x=20,y=176,w=440,h=100},
+    messageRegion={x=28,y=206,w=424,h=60},
+    enemyCard={x=28,y=28,w=180,h=70},
+    enemySprite={x=220,y=28,w=220,h=64},
+    playerSprite={x=28,y=98,w=220,h=64},
+    playerCard={x=252,y=98,w=180,h=70},
+    menu={{index=1, action={label="FIGHT"},
+      rect={x=28,y=216,w=200,h=24}}},
+    titleHeight=28, gap=6, scale=1,
+  }
+  local battleDrawn = BattleRender.draw(battleGraphics, {
+    kind="battle", opaque=true,
+    enemy={name="PIDGEY", level=4, gender="female", status="poison",
+      caught=true, hp=18, maxHp=18},
+    player={name="CYNDAQUIL", level=13, gender="male",
+      confused=true, hp=28, maxHp=33, exp=0.5},
+    actions={{id="fight",label="FIGHT"}}, selectedAction=1,
+  }, battleLayout, fakeFont, fakeTheme)
+  T.equal(battleDrawn, true,
+    "battle renderer draws a complete metadata-rich frame")
+  local battleText = table.concat(battlePrinted, "|")
+  T.check(battleText:find("♀", 1, true) ~= nil
+      and battleText:find("♂", 1, true) ~= nil,
+    "battle cards visibly render applicable gender symbols")
+  T.check(battleText:find("PSN", 1, true) ~= nil
+      and battleText:find("CNF", 1, true) ~= nil,
+    "battle cards visibly render major and volatile conditions")
+  T.check(battleText:find("CAUGHT", 1, true) ~= nil
+      and battleText:find("EXP", 1, true) ~= nil,
+    "battle cards visibly render wild catch state and player experience")
   local spriteLayout = {
     viewport={w=320,h=200}, outer={x=0,y=0,w=320,h=200}, scale=1,
     header={x=12,y=12,w=296,h=24}, rows={},

@@ -10,8 +10,8 @@ selection.
 |---|---:|---|
 | `XS` | 320×200 | Confirmation, quantity, caller strip |
 | `S` | 400×300 | Short utility menus |
-| `NAV` | 440×560 | Start and Mod Menus |
-| `M` | 600×420 | Main, Options, Save, PC roots |
+| `NAV` | 320–440×560 | Start and Mod Menus; content-driven width |
+| `M` | 320–600×420 | Main, Options, Save, PC roots; plain menus are content-driven |
 | `L` | 760×540 | Party, Summary, Pack, Pokédex, services |
 | `XL` | 960×640 | Box storage, Naming, Mail Compose |
 | `BATTLE_WIDE` | 640×360 | Gen1 2D battle only |
@@ -23,7 +23,9 @@ inner edge.
 ## Stable screen lifetime
 
 A product supplies a unique screen-instance token. The runtime locks preset,
-physical outer bounds, density, and font step for that instance.
+physical outer bounds, density, and font step for that instance. NAV and
+content-driven M menus also lock their chosen content width for that instance;
+M menus retain their full 420-pixel logical height.
 
 These changes do not resize the outer frame:
 
@@ -32,6 +34,13 @@ These changes do not resize the outer frame:
 - Pack pocket, PC mode, or Trainer Card side;
 - submenu, quantity prompt, confirmation, or other embedded modal;
 - row count, message length, selection, or scroll offset.
+
+NAV and ordinary M menus are the adaptive exceptions to the fixed-width preset
+table. Their outer width is measured from the title, description, rows, and
+plain details, then clamped to 320–440 or 320–600 logical pixels respectively.
+Rich detail/sprite menus retain their full declared width. An adaptive width is
+never widened by a later row, pin, or selection change. A new view,
+viewport/safe-area change, or relevant setting revision may choose a new width.
 
 Only reopen, viewport/safe-area/orientation change, or a relevant user
 setting/theme revision creates a new layout session.
@@ -184,4 +193,3 @@ A layout is complete only when:
 - `unresolvedRequired` is empty.
 
 If no candidate is complete, the product must not suppress native UI.
-

@@ -12,7 +12,9 @@ Replace the retired monolithic Modern UI with three MIT-licensed repositories:
 The rebuild is a clean break:
 
 - No old settings or pin import.
-- No V1/V2 compatibility aliases.
+- No legacy settings/pin imports or loader-level product aliases. Product
+  builds may expose an explicit Modern UI v1/v2 compatibility facade so
+  existing source mods can migrate to V3 without losing presentation support.
 - Existing hook-added Start-menu entries remain generically discoverable, but richer integration uses Clean UI API V3.
 - Gen2 is implemented first; Gen1 follows after Gen2's non-battle UI is stable.
 - Plain Pixel is the default font.
@@ -29,7 +31,8 @@ The rebuild is a clean break:
 - Produce `0.9.1` with:
   - Explicit `"games": ["gen1"]`.
   - No Gen2 code, contracts, docs, flags, or claims.
-  - The taller, narrower Start-menu `NAV` envelope at `440x560`.
+  - The taller, narrower Start-menu `NAV` envelope at `320–440x560`, with
+    width chosen from required content and locked while open.
   - Only additional RBY changes that have an isolated regression test, contain no Gen2 symbols, and demonstrably fix behavior absent from `v0.9.0`.
   - Frozen V1/V2 documentation and a retirement notice.
   - A conflict with `gen1_clean_ui`.
@@ -97,21 +100,33 @@ Use one minimal pixel-modern system with restrained generation accents:
 |---|---:|---|
 | XS | 320x200 | Confirmation, quantity, caller strip |
 | S | 400x300 | Short utility menus |
-| NAV | 440x560 | Start and Mod Menus |
-| M | 600x420 | Main, Options, Save, PC roots |
+| NAV | 320–440x560 | Start and Mod Menus; content-driven width |
+| M | 320–600x420 | Main, Options, Save, PC roots; plain menus are content-driven |
 | L | 760x540 | Party, Summary, Pack, Pokedex, services |
 | XL | 960x640 | Box storage, Naming, Mail Compose |
+| Battle | 640x360 landscape / 360x640 portrait | Gen2 stable battle frames |
 | Battle Wide | 640x360 | Gen1 2D battle only |
 
 Rules:
 
 - A screen's envelope is fixed for its lifetime. Page, Pokemon, pocket, selection, submenu, and content changes never resize its outer frame.
+- NAV chooses a width from 320–440 logical pixels, and ordinary M menus from
+  320–600, using their required title/description/row footprint when opened;
+  both retain their full logical heights and lock the chosen width for the view
+  lifetime. Rich detail/sprite M menus retain their full width. Neither mode
+  widens when rows, pins, or selections change.
 - Recalculate only after reopen, viewport/safe-area/orientation changes, or a user setting/theme change.
 - Use measured header, footer, body, scrolling, clipping, and pointer geometry from one layout result.
 - Overflow order is: reflow columns, wrap, scroll, tighten optional spacing/chrome, then lower the font step.
 - Never silently overlap or clip required content.
 - AUTO scaling grows on 4K/5K displays, but final bounds must remain inside the safe viewport.
-- The Gen1 battle presenter uses only the `640x360` wide design. If a narrow or portrait viewport cannot fit it legibly at Plain Pixel 1x, leave the battle native instead of inventing a stacked battle layout.
+- Gen2 battle uses the responsive `Battle` envelope. Stable menu, move,
+  message, and status frames may be replaced; transition, animation, and
+  battle-owned child states remain native until their timing contracts are
+  independently proven.
+- The Gen1 battle presenter uses only the `640x360` wide design. If a narrow or
+  portrait viewport cannot fit it legibly at Plain Pixel 1x, leave Gen1 battle
+  native instead of inventing a stacked battle layout.
 - Enemy status stays above/within the enemy side of the renderer, never directly stacked above the player status panel.
 
 ### Font and settings
@@ -252,7 +267,10 @@ Custom surfaces explicitly support FelizNavidad-D's requirements:
 
 Every custom draw runs on a private canvas inside a protected graphics-state transaction. Canvas, transform, shader, color, blend mode, scissor, and font are restored even after exceptions.
 
-No V1/V2 names or adapters ship in Clean UI. Known mods migrate through V3 instead of receiving hardcoded product integrations.
+V3 remains the primary integration surface. Product repositories may retain a
+scoped v1/v2 facade with the same data-only and fail-open boundaries as the
+retired Modern UI API; no loader-level product alias or legacy state import is
+allowed.
 
 Source examples in `clean-ui-core/examples` cover:
 
@@ -275,7 +293,8 @@ Maintain an exact record for every ID in `Screens.GEN2_IDS`. Each record declare
 - `0.1.0 alpha`: core integration, dropdown settings, Mod Menus/pins, Gallery, Manager, `Gen2MainMenu`, `Gen2StartMenu`, `Gen2OptionsMenu`, shared TextBox/ChoiceBox, and nickname prompts.
 - `0.2.0 alpha`: Pack, Party, three Summary pages, moves/reordering, held-item flows, Pokedex, Trainer Card, Save, Naming, Center/Player/Box/Item PCs.
 - `0.3.0 beta`: Pokegear, MapRadio/CallerBox, Mart, ScriptMenu, bank, contest, daycare, held-item, elevator, move deleter, mail, decoration, trade, NamePick, clock, Diploma, Photo Studio, Unown Printer, and Hall of Fame viewer.
-- `1.0.0`: complete non-battle contract audit, responsive QA, documentation, and stable release.
+- `1.0.0`: complete contract audit including stable battle presentation,
+  responsive QA, documentation, and stable release.
 
 Party/Summary acceptance includes:
 
@@ -287,7 +306,7 @@ Party/Summary acceptance includes:
 
 Remain native through Gen2 1.0:
 
-- Battle and battle transition, including child menus opened over battle
+- Battle transition, battle animations, and child menus opened over battle
 - Card Flip, slots, and Unown Puzzle
 - Splash, title cinematic, credits
 - Hatch, evolution, trade, and Magnet Train animations
@@ -295,7 +314,8 @@ Remain native through Gen2 1.0:
 - Hall of Fame induction
 - World-owned picture windows without an independent suppression seam
 
-Gen2 battle becomes a separately designed post-1.0 milestone.
+Gen2 battle's stable decision/message frames are part of the 1.0 scope;
+animation-heavy and child-owned battle states remain explicit native seams.
 
 ### Gen1 Clean UI second
 
@@ -368,4 +388,3 @@ No stable release is accepted while any supported screen can hide native UI with
 - The Gen2 prototype is research material only, not a codebase to transplant.
 - FelizNavidad-D's 3D battle mod remains independent; Clean UI supplies V3 facilities but does not absorb ownership of 3D battle HUDs.
 - No remote repository creation, push, tag, release, or GitHub archival occurs without separate authorization.
-

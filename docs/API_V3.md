@@ -170,7 +170,12 @@ does not claim ownership of an existing game screen.
 ```
 
 Screen `preset` is one of `XS`, `S`, `NAV`, `M`, `L`, or `XL`. The product
-locks that envelope for the screen instance's lifetime.
+locks that envelope for the screen instance's lifetime. NAV may choose a
+content-driven width between 320 and 440 logical pixels, and ordinary M menus
+between 320 and 600, when they open. Each chosen width remains locked until
+the view is reopened or its layout context changes; the 560-pixel NAV and
+420-pixel M logical heights are preserved. Rich detail/sprite M menus retain
+their full declared width.
 
 ## Extensions
 
@@ -446,6 +451,9 @@ contract.
 
 ## Migration policy
 
-Clean UI is a clean break. There are no compatibility aliases or adapters for
-the retired Modern UI APIs. Integrations register an explicit V3 contract and
-feature-detect capabilities with `supports`.
+API V3 is the preferred Clean UI contract. Product repositories may also ship
+an explicit, product-scoped Modern UI v1/v2 compatibility facade for existing
+source mods. That facade must retain the old data/callback boundary, private
+surface transactions, and native fail-open behavior; it must not create a
+loader-level `gen1_modern_ui` alias or import legacy settings/pins. New
+integrations should feature-detect `cleanUiHost` and register V3 contracts.

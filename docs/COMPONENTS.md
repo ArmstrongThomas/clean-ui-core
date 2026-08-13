@@ -41,9 +41,12 @@ not create a new component; changing an ID does.
 }
 ```
 
-`preset` is fixed for the screen instance. Header, body, footer, overlay host,
-clip rectangles, scroll ranges, and hit regions are all produced by one
-measurement result.
+`preset` is fixed for the screen instance. NAV may choose its width from the
+320–440 logical-pixel content range, and ordinary M menus may choose from
+320–600, when opened. Those widths and their full 560- or 420-pixel logical
+heights are then fixed. Rich detail/sprite M menus retain their full width.
+Header, body, footer, overlay host, clip rectangles, scroll ranges, and hit
+regions are all produced by one measurement result.
 
 ## Label
 

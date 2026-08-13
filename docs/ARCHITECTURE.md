@@ -17,7 +17,8 @@ The architecture must make these properties mechanically testable:
 3. Plain Pixel is created only at 15, 30, 45, or 60 physical pixels.
 4. Rendering consumes one measured layout result; drawing never performs a second independent layout pass.
 5. Dropdowns are controlled, modal overlays that cannot resize their parent.
-6. V3 registration is atomic, idempotent, deterministic, and has no V1/V2 aliases.
+6. V3 registration is atomic, idempotent, deterministic, and product-scoped
+   Modern UI compatibility never creates a loader-level product alias.
 7. External surface callbacks cannot leak graphics state or break unrelated UI.
 8. Unsupported, invalid, or failed presentation always fails open to native UI.
 9. Gallery fixtures use production presenters but never construct live game screens or mutate game state.
@@ -258,7 +259,7 @@ All final core-widget coordinates are integer physical pixels. Half-pixel line p
 | `design/contrast.lua` | WCAG relative luminance and 4.5:1 validation for essential text/control pairs. |
 | `design/frames.lua` | Default two-logical-pixel cut-corner frame and validated custom-frame registry. |
 | `design/density.lua` | Auto, Comfortable, and Compact token resolution. |
-| `design/presets.lua` | Immutable preset dimensions. |
+| `design/presets.lua` | Immutable preset dimensions and bounded adaptive NAV/M widths. |
 
 `design/presets.lua` contains exactly:
 
@@ -266,8 +267,8 @@ All final core-widget coordinates are integer physical pixels. Half-pixel line p
 return {
   XS = { w = 320, h = 200 },
   S = { w = 400, h = 300 },
-  NAV = { w = 440, h = 560 },
-  M = { w = 600, h = 420 },
+  NAV = { w = 440, minW = 320, h = 560, widthMode = "content" },
+  M = { w = 600, minW = 320, h = 420, widthMode = "content" },
   L = { w = 760, h = 540 },
   XL = { w = 960, h = 640 },
   BATTLE_WIDE = { w = 640, h = 360 },

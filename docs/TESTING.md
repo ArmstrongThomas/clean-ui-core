@@ -133,7 +133,9 @@ Contract tests include:
 - owner reload/removal cleanup;
 - callback error isolation.
 
-No compatibility aliases are loaded by the contract suite.
+No loader-level compatibility aliases are loaded by the contract suite.
+Product-scoped Modern UI v1/v2 facades are covered by the owning product's
+compatibility suite.
 
 ## Surface tests
 
