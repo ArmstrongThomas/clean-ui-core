@@ -104,8 +104,8 @@ Use one minimal pixel-modern system with restrained generation accents:
 | M | 320–600x420 | Main, Options, Save, PC roots; plain menus are content-driven |
 | L | 760x540 | Party, Summary, Pack, Pokedex, services |
 | XL | 960x640 | Box storage, Naming, Mail Compose |
-| Battle | 640x360 landscape / 360x640 portrait | Gen2 stable battle frames |
-| Battle Wide | 640x360 | Gen1 2D battle only |
+| Battle | Deferred | Native host battle boundary pending a new design |
+| Battle Wide | Deferred | Future Gen1 2D battle design only |
 
 Rules:
 
@@ -120,13 +120,14 @@ Rules:
 - Overflow order is: reflow columns, wrap, scroll, tighten optional spacing/chrome, then lower the font step.
 - Never silently overlap or clip required content.
 - AUTO scaling grows on 4K/5K displays, but final bounds must remain inside the safe viewport.
-- Gen2 battle uses the responsive `Battle` envelope. Stable menu, move,
-  message, and status frames may be replaced; transition, animation, and
-  battle-owned child states remain native until their timing contracts are
-  independently proven.
-- The Gen1 battle presenter uses only the `640x360` wide design. If a narrow or
-  portrait viewport cannot fit it legibly at Plain Pixel 1x, leave Gen1 battle
-  native instead of inventing a stacked battle layout.
+- Gen2 battle remains entirely native/deferred. No active Core battle renderer,
+  ownership latch, or animation-frame reconstruction is a product contract.
+  Future work may preserve the design goals of detached composition and
+  explicit suppression, but must begin from new host seams and a new
+  architecture.
+- Gen1 battle is a future design milestone. Until it is separately designed
+  and proven, leave the complete battle stack native rather than inventing a
+  replacement layout.
 - Enemy status stays above/within the enemy side of the renderer, never directly stacked above the player status panel.
 
 ### Font and settings
@@ -272,6 +273,20 @@ scoped v1/v2 facade with the same data-only and fail-open boundaries as the
 retired Modern UI API; no loader-level product alias or legacy state import is
 allowed.
 
+### V3-first migration gate
+
+The active migration goal is that at least 99% of replaceable interactive UI
+surfaces use the canonical V3 presentation boundary. The denominator is
+replaceable surfaces with a complete suppression seam, not every internal
+native animation or world-owned transition ID. A supported surface must return
+one of the canonical V3 models, pass the shared validator, use the shared
+responsive renderer, and retain source-owned input/mutation callbacks outside
+the model. Native or deferred records are acceptable only when their complete
+stack suppression, timing, or world-capture seam is not yet proven and must
+remain explicit in the product catalog. Any capability that blocks the next
+surface becomes an API gap candidate with a fixture and regression test before
+the product adds a compatibility escape hatch.
+
 Source examples in `clean-ui-core/examples` cover:
 
 - Party row background colors
@@ -304,18 +319,36 @@ Party/Summary acceptance includes:
 - Move order and held-item actions remain source-owned and usable.
 - The outer L envelope remains stable across every page and Pokemon.
 
+V3 migration is the default for roughly 99% of replaceable UI surfaces. A
+surface should leave the native boundary only when its source state, timing,
+input, and complete visible stack can be represented by the canonical V3
+model. When the API cannot express a must-have without an approximation, add
+that capability to Core and Studio first, then use the new seam as a product
+example and regression target.
+
+The V3 gap register is intentionally explicit. Core now exposes validated,
+responsive first-class `device` and `map` presentation kinds, and Pokegear's
+smartphone shell, native map graphic, cursor/landmark data, and Fly view use
+those kinds instead of product-scoped `menu` extensions. The remaining V3
+animation model describes deterministic visual frames but does not own live
+timing, source identity, input, gameplay mutation, or complete child-stack
+ownership. The next API milestone is to add and test those timing/source seams
+in Core (and keep the standalone editor in parity) before migrating products or
+claiming animation-heavy paths as fully portable. Product work should remain
+on the canonical V3 model and fail open at those boundaries in the meantime.
+
 Remain native through Gen2 1.0:
 
-- Battle transition, battle animations, and child menus opened over battle
+- Unproven battle-owned child stacks and source-owned animation sequences
 - Card Flip, slots, and Unown Puzzle
-- Splash, title cinematic, credits
-- Hatch, evolution, trade, and Magnet Train animations
+- Trade and Magnet Train animations
 - Oak's parent artwork/state, while audited child dialogue/naming may be modern
 - Hall of Fame induction
 - World-owned picture windows without an independent suppression seam
 
-Gen2 battle's stable decision/message frames are part of the 1.0 scope;
-animation-heavy and child-owned battle states remain explicit native seams.
+Gen2 battle is deferred from the active Core roadmap after the failed live
+architecture attempt. All battle phases and child stacks remain explicit
+native boundaries until a replacement design is approved and verified.
 
 ### Gen1 Clean UI second
 
@@ -346,6 +379,9 @@ Cinematics and animation-heavy native scenes remain native unless later given an
 - Generation providers own exact screen detection, validation, model extraction, palette/sprite resolution, pointer mapping, and suppression policy.
 - The shared core owns measurement, layout, drawing, themes, controls, diagnostics, and V3 registries.
 - Build the complete replacement offscreen before suppressing native rendering.
+- Require the canonical V3 schema, `apiVersion = 3`, and non-empty model kind at
+  the generation-provider boundary before a prepared frame can suppress native
+  rendering; Core still performs the complete model validation afterward.
 - Suppress only `screen.render_visible` for proven complete stacks; never clear shared world/UI canvases.
 - Unknown IDs, malformed fields, custom source draw overrides, contract drift, capture modes, and exceptions immediately restore native rendering.
 - The source screen always owns update, input semantics, callbacks, audio, save mutation, and transitions.

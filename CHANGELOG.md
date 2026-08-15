@@ -1,5 +1,25 @@
 # Changelog
 
+## Unreleased
+
+- Added first-class V3 `device` and `map` presentation kinds with strict
+  descriptor, marker, tilemap, and cursor-sheet validation plus the shared
+  responsive menu renderer and embedding bridge.
+- Added Core editor-fixture coverage for both direct kinds. The remaining V3
+  gap is live source-owned animation timing, source identity, and complete
+  child-stack ownership; products continue to fail open at those boundaries.
+- Deferred the experimental Core battle scene-frame, ownership-latch, and
+  responsive battle-envelope work after official-launcher failures beyond the
+  intro. Gen2 battle remains native/deferred while a new architecture is
+  designed; see `docs/archive/battle-ui-deferred-2026-08-15/`.
+- Kept the V3 naming presentation data-only: Core may render entry slots and a
+  keyboard surface while the source retains cursor, text, and completion
+  ownership.
+- Added the V3 `all_generations = true` contract flag. A shared contract can
+  now register against every Clean UI generation without duplicating its
+  `games` list; manifests still declare launcher eligibility, and the editor
+  catalog preserves the universal declaration.
+
 ## 0.1.0-alpha.10 — 2026-08-13
 
 - Added content-driven NAV shell width, clamped to 320–440 logical pixels and

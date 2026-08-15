@@ -12,6 +12,9 @@ available for the running game.
 - `details-fields-footer-lists`: automatic columns and bottom anchoring.
 - `modal-overlay`: a dimmed, focus-trapped modal.
 - `animated-shader-grid`: custom coordinates, animation, pointers, and shader isolation.
+- `ui-editor-fixture`: a deterministic panel, action, modal, Gallery, and
+  direct dialogue/choice/battle/animation contract-catalog target for
+  standalone editor work.
 
 Run an example's `build_release.ps1` or `build_release.cmd`. Archives are
 local demonstration artifacts and are not published as multiple updater

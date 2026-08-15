@@ -254,6 +254,7 @@ Tests declare stable requirement IDs, including:
 - `NATIVE-FAILOPEN-001`
 - `GALLERY-NOMUTATE-001`
 - `PINS-DORMANT-001`
+- `V3-EDITOR-FIXTURE-001`
 
 CI rejects a required ID with no covering test.
 

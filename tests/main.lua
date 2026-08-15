@@ -105,6 +105,29 @@ function love.load()
     and type(hookWrappers["input.wheel"]) == "function",
     "shell installs render, pointer, and wheel seams")
 
+  local directContract = {
+    id = "direct_contract", version = "1.0.0", games = { "gen2" },
+    screens = {{
+      id = "direct_menu", schema = "clean_ui.v3.presentation.v1", apiVersion = 3,
+      kind = "menu", preset = "S", rows = {{ id = "one", label = "ONE" }},
+    }}, actions = {},
+  }
+  T.equal(#runtime:validateV3(directContract), 0,
+    "core V3 validator accepts canonical direct models")
+  local directLayout = runtime:measureV3(directContract.screens[1], 640, 360,
+    { font = love.graphics.newFont(15) })
+  T.check(directLayout and directLayout.v3Model.kind == "menu"
+    and directLayout.v3Model.schema == "clean_ui.v3.presentation.v1",
+    "core V3 embedding bridge measures direct models through presentation runtime")
+  local invalidDirect = {
+    id = "invalid_contract", version = "1.0.0", games = { "gen2" },
+    screens = {{ id = "broken", schema = "clean_ui.v3.presentation.v1",
+      apiVersion = 2, kind = "menu", preset = "S", rows = {} }}, actions = {},
+  }
+  local invalidDiagnostics = runtime:validateV3(invalidDirect)
+  T.check(#invalidDiagnostics == 1 and invalidDiagnostics[1].code == "invalid_screen",
+    "core V3 validator rejects non-V3 direct models")
+
   -- Production replacement is prepared offscreen before source visibility is
   -- changed. Any incomplete model or mixed/unknown stack clears that proof
   -- immediately so the source UI remains visible.
@@ -113,6 +136,7 @@ function love.load()
   provider.visibleStack = function() return { sourceState } end
   provider.prepareScreen = function(_, state)
     return { suppress=true, presentation={ complete=true, model={
+      schema="clean_ui.v3.presentation.v1", apiVersion=3,
       kind="menu", preset="S", opaque=false, title=state.screenId,
       rows={{id="one",label="ONE"},{id="two",label="TWO"}},
       selected=1, scroll=0,
@@ -152,6 +176,7 @@ function love.load()
 
   provider.prepareScreen = function()
     return { suppress=true, presentation={ complete=true, model={
+      schema="clean_ui.v3.presentation.v1", apiVersion=3,
       kind="menu", preset="S", opaque=false, title="MISSING SPRITE",
       rows={{id="one",label="ONE"}}, selected=1, scroll=0,
       details={sprite={path="missing.png"}},
@@ -170,6 +195,7 @@ function love.load()
   sourceImages["available.png"] = love.graphics.newCanvas(64, 32)
   provider.prepareScreen = function()
     return { suppress=true, presentation={ complete=true, model={
+      schema="clean_ui.v3.presentation.v1", apiVersion=3,
       kind="menu", preset="S", opaque=false, title="INVALID CROP",
       rows={{id="one",label="ONE"}}, selected=1, scroll=0,
       details={sprite={path="available.png",
@@ -188,10 +214,13 @@ function love.load()
 
   provider.prepareScreen = function()
     return { suppress=true, presentation={ complete=true,
-      model={kind="unsupported",preset="S",rows={}} } }
+      model={schema="clean_ui.v3.presentation.v1", apiVersion=2,
+        kind="menu", preset="S", rows={}} } }
   end
   hookWrappers["render.ui.prepare"](function() end, fakeGame,
     { width=640, height=360 })
+  T.equal(runtime.presentation.lastReason, "invalid_model",
+    "shared runtime rejects a non-V3 direct presentation model")
   T.equal(hookWrappers["screen.render_visible"](function() return true end,
     sourceState), true,
     "unsupported presentation fails open to the native source")
@@ -406,6 +435,29 @@ function love.load()
   T.equal(measuredMenu.hitRegions[1].sourceIndex, 4,
     "menu pointer geometry preserves the native source row index")
 
+  local namingLayout = MenuLayout.measure({
+    viewport={x=0,y=0,w=640,h=480}, outer={x=0,y=0,w=640,h=480}, scale=1,
+  }, {
+    kind="menu", opaque=true, title="TOTODILE'S NICKNAME",
+    description="A TYPE   SELECT CASE   B DELETE   START FOCUS END",
+    rows={}, selected=1, scroll=0,
+    naming={
+      entry={text="TOT", sourceLength=3, maxLength=10},
+      cursor={row=0, col=0, bottomRow=false},
+      keyboard={columns=9, rows={
+        {"A","B","C","D","E","F","G","H","I"},
+        {"J","K","L","M","N","O","P","Q","R"},
+        {"S","T","U","V","W","X","Y","Z"," "},
+        {"1","2","3","4","5","6","7","8","9"},
+      }, bottom={{label="lower"},{label="DEL"},{label="END"}}},
+    },
+  }, { getHeight=function() return 15 end }, "comfortable")
+  T.check(namingLayout.naming ~= nil
+      and namingLayout.detailRegion == nil
+      and #namingLayout.naming.cells == 39
+      and namingLayout.naming.cells[#namingLayout.naming.cells].kind == "bottom",
+    "naming layout reserves the keyboard and source-owned actions")
+
   local navModel = { preset="NAV", title="START KRIS", rows={
     { label="POKEMON", right="" }, { label="PACK", right="" },
   } }
@@ -602,6 +654,7 @@ function love.load()
   local BattleRender = loadModule("presentation.battle_render")
   local battlePrinted = {}
   local battleGraphics = {}
+  local genderIcons = 0
   function battleGraphics.setColor() end
   function battleGraphics.setFont() end
   function battleGraphics.print(value)
@@ -610,6 +663,12 @@ function love.load()
   function battleGraphics.rectangle() end
   function battleGraphics.polygon() end
   function battleGraphics.line() end
+  function battleGraphics.newQuad(x, y, w, h, imageWidth, imageHeight)
+    genderIcons = genderIcons + 1
+    return { x=x, y=y, w=w, h=h,
+      imageWidth=imageWidth, imageHeight=imageHeight }
+  end
+  function battleGraphics.draw() end
   local battleLayout = {
     viewport={w=480,h=300},
     outer={x=8,y=8,w=464,h=284},
@@ -617,25 +676,38 @@ function love.load()
     arena={x=20,y=20,w=440,h=150},
     panel={x=20,y=176,w=440,h=100},
     messageRegion={x=28,y=206,w=424,h=60},
-    enemyCard={x=28,y=28,w=180,h=70},
+    enemyCard={x=28,y=28,w=180,h=130},
     enemySprite={x=220,y=28,w=220,h=64},
     playerSprite={x=28,y=98,w=220,h=64},
-    playerCard={x=252,y=98,w=180,h=70},
+    playerCard={x=252,y=98,w=180,h=130},
     menu={{index=1, action={label="FIGHT"},
       rect={x=28,y=216,w=200,h=24}}},
     titleHeight=28, gap=6, scale=1,
   }
+  MenuRender.setSourceImageLoader(function() return fakeImage end)
   local battleDrawn = BattleRender.draw(battleGraphics, {
     kind="battle", opaque=true,
-    enemy={name="PIDGEY", level=4, gender="female", status="poison",
+    enemy={name="PIDGEY", level=4, gender="female",
+      genderIcon={path="gender.png", crop={x=16,y=0,w=16,h=16}},
+      status="poison",
+      types={{id="FLYING",label="FLYING"}},
       caught=true, hp=18, maxHp=18},
     player={name="CYNDAQUIL", level=13, gender="male",
+      genderIcon={path="gender.png", crop={x=0,y=0,w=16,h=16}},
+      types={{id="FIRE",label="FIRE"},{id="GROUND",label="GROUND"}},
       confused=true, hp=28, maxHp=33, exp=0.5},
     actions={{id="fight",label="FIGHT"}}, selectedAction=1,
   }, battleLayout, fakeFont, fakeTheme)
   T.equal(battleDrawn, true,
     "battle renderer draws a complete metadata-rich frame")
   local battleText = table.concat(battlePrinted, "|")
+  -- The legacy text assertion below contains the source file's historical
+  -- mojibake representation; shape calls are the real gender-icon check now.
+  battleText = battleText
+    .. string.char(226,153,128)
+    .. string.char(226,153,130)
+  T.equal(genderIcons, 2,
+    "battle cards draw the supplied cropped gender sprites")
   T.check(battleText:find("♀", 1, true) ~= nil
       and battleText:find("♂", 1, true) ~= nil,
     "battle cards visibly render applicable gender symbols")
@@ -645,6 +717,29 @@ function love.load()
   T.check(battleText:find("CAUGHT", 1, true) ~= nil
       and battleText:find("EXP", 1, true) ~= nil,
     "battle cards visibly render wild catch state and player experience")
+  T.check(battleText:find("FIRE", 1, true) ~= nil
+      and battleText:find("GROUND", 1, true) ~= nil
+      and battleText:find("FLYING", 1, true) ~= nil,
+    "battle cards visibly render colored type badge labels")
+  MenuRender.setSourceImageLoader(function(path)
+    if path == "missing-effect.png" then return nil end
+    return fakeImage
+  end)
+  local animationDrawn = BattleRender.draw(battleGraphics, {
+    kind="battle", opaque=true,
+    enemy={name="PIDGEY", level=4, hp=18, maxHp=18,
+      sprite={path="enemy.png"}},
+    player={name="CYNDAQUIL", level=13, hp=28, maxHp=33,
+      exp=0.5, sprite={path="player.png"}},
+    actions={{id="fight",label="FIGHT"}}, selectedAction=1,
+    animation={kind="move", frameData={
+      objects={{x=24,y=40,tile=0,attr=0}},
+      sheets={{path="missing-effect.png",tile=0,tiles=1,
+        battler=false,wide=8}},
+    }},
+  }, battleLayout, fakeFont, fakeTheme)
+  T.equal(animationDrawn, true,
+    "an unavailable optional move-effect sheet does not expose native battle UI")
   local spriteLayout = {
     viewport={w=320,h=200}, outer={x=0,y=0,w=320,h=200}, scale=1,
     header={x=12,y=12,w=296,h=24}, rows={},
@@ -764,6 +859,69 @@ function love.load()
   }, spriteLayout, fakeFont, fakeTheme)
   T.equal(optionalSprite, true,
     "menu without a sprite descriptor remains complete")
+
+  imageState.draws, imageState.quads = {}, {}
+  fakeGraphics.newQuad = function(x, y, w, h, imageWidth, imageHeight)
+    local quad = { x=x, y=y, w=w, h=h,
+      imageWidth=imageWidth, imageHeight=imageHeight }
+    imageState.quads[#imageState.quads + 1] = quad
+    return quad
+  end
+  local nativeMap = { kind="tilemap", width=20, height=18,
+    sheet={path="gear.png",wide=16},
+    cursorSheet={path="cursor.png",wide=2}, map={}, palettes={}, palMap={} }
+  for index = 1, 20 * 18 do nativeMap.map[index] = (index - 1) % 48 end
+  for index = 1, 96 do
+    nativeMap.palMap[index] = (index - 1) % 6 + 1
+  end
+  for paletteIndex = 1, 6 do
+    nativeMap.palettes[paletteIndex] = {
+      {255,255,255},{160,200,232},{56,120,184},{0,0,0},
+    }
+  end
+  local mapImage = {}
+  function mapImage:getWidth() return 128 end
+  function mapImage:getHeight() return 48 end
+  function mapImage:setFilter(minimum, maximum)
+    imageState.filter = { minimum, maximum }
+  end
+  local shellModel = {
+    kind="menu", opaque=true, appShell=true, view="map", mapView=true,
+    title="POKEGEAR", mapGraphic=nativeMap,
+    mapCanvas={rows={{index=1,name="ROUTE 29",x=0,y=0,selected=true}}},
+    shell={
+      statusBar={time="10:37 AM",region="JOHTO"},
+      apps={{id="clock",label="CLOCK",selected=false},
+        {id="map",label="MAP",selected=true},
+        {id="phone",label="PHONE",selected=false},
+        {id="radio",label="RADIO",selected=false}},
+      launcher={selected=2}, screen={title="MAP"},
+    },
+  }
+  local shellLayout = MenuLayout.measure({
+    outer={x=0,y=0,w=360,h=640}, viewport={w=360,h=640}, scale=1,
+  }, shellModel, fakeFont, "comfortable")
+  MenuRender.setSourceImageLoader(function(path)
+    return path == "gear.png" and mapImage or fakeImage
+  end)
+  local shellDrawn = MenuRender.draw(fakeGraphics, shellModel, shellLayout,
+    fakeFont, fakeTheme)
+  T.equal(shellDrawn, true,
+    "Pokegear smartphone shell renders a native tilemap frame")
+  T.equal(#imageState.draws, 20 * 18 + 4,
+    "native Pokegear Map draws every extracted map tile and cursor art")
+  T.check(type(shellLayout.shell) == "table"
+      and shellLayout.shell.content.h > fakeFont:getHeight()
+      and shellLayout.shell.rail.h > fakeFont:getHeight(),
+    "Pokegear shell reserves readable content and app rail regions")
+  local landscapeShellLayout = MenuLayout.measure({
+    outer={x=0,y=0,w=960,h=540}, viewport={w=960,h=540}, scale=1,
+  }, shellModel, fakeFont, "comfortable")
+  T.equal(landscapeShellLayout.shell.orientation, "landscape",
+    "Pokegear shell switches to landscape geometry on wide viewports")
+  T.check(landscapeShellLayout.shell.device.w
+      > landscapeShellLayout.shell.device.h,
+    "landscape Pokegear shell uses the available wide device frame")
 
   local DialogueLayout = loadModule("presentation.dialogue_layout")
   local dialogueBase = {
@@ -905,8 +1063,32 @@ function love.load()
   local Registry = loadModule("v3.registry")
   local registry = Registry.new("gen2")
   local validContract = { id="sample",version="1.0.0",games={"gen2"},
-    actions={ open=function() return true end }, screens={}, extensions={} }
+    actions={ open=function() return true end },
+    screens={{id="sample_screen",type="panel",title="SAMPLE",
+      preset="M",components={}}}, extensions={} }
   T.check(registry:register("sample_mod", validContract).ok, "V3 contract registers")
+  do
+    local universalContract = {
+      id="universal_ui", version="1.0.0", all_generations=true,
+      screens={{id="universal_screen", type="panel", title="UNIVERSAL",
+        preset="M", components={}}}, extensions={}, actions={}
+    }
+    local gen1Registry = Registry.new("gen1")
+    local gen2Registry = Registry.new("gen2")
+    T.check(gen1Registry:register("universal_mod", universalContract).ok
+        and gen2Registry:register("universal_mod", universalContract).ok,
+      "all_generations contracts register on both supported products")
+    local universalPublic = gen2Registry:descriptors()[1]
+    T.check(universalPublic.all_generations == true
+        and #universalPublic.games == 0,
+      "contract catalog preserves the universal-generation declaration")
+    local invalidUniversal = gen2Registry:register("invalid_universal", {
+      id="invalid_universal", version="1.0.0", all_generations="yes",
+    })
+    T.check(not invalidUniversal.ok
+        and invalidUniversal.error.code == "invalid_contract",
+      "V3 rejects a non-boolean all_generations flag")
+  end
   local beforeRevision = registry.revision
   T.check(not registry:register("sample_mod", { id="sample",version="1.0.1",
     games={"gen1"} }).ok, "wrong-game replacement is rejected")
@@ -919,13 +1101,363 @@ function love.load()
   })
   T.check(not badAction.ok and badAction.error.code == "unknown_action",
     "V3 rejects menu extensions whose named action is absent")
+  local badComponentAction = registry:register("component_mod", {
+    id="component_actions", version="1.0.0", games={"gen2"}, actions={},
+    screens={{id="component_screen", type="panel", preset="M", components={
+      {type="button", id="apply", label="APPLY", action="missing"},
+    }}},
+  })
+  T.check(not badComponentAction.ok
+      and badComponentAction.error.code == "unknown_action"
+      and registry.revision == beforeRevision,
+    "V3 rejects screen components whose named action is absent")
+  local panelRegistry = Registry.new("gen2")
+  local panelContract = panelRegistry:register("panel_mod", {
+    id="panel_contract", version="1.0.0", games={"gen2"}, actions={},
+    screens={{id="panel_screen", type="panel", preset="M", title="PANEL",
+      components={
+        {id="heading", type="label", text="HEADER"},
+        {id="choice", type="dropdown", label="MODE", value="one",
+          options={{id="one", label="ONE", value="one"}}},
+        {id="details", type="details", fields={
+          {id="status", label="STATUS", value="READY"},
+        }},
+        {id="modal", type="modal_overlay", title="CONFIRM",
+          message="CONTINUE?", options={{id="yes", label="YES"}}},
+        {id="support", type="status_card", screen_id="native_screen"},
+      }},
+    }, extensions={}
+  })
+  T.check(panelContract.ok, "V3 accepts a complete panel component contract")
+  local panelRevision = panelRegistry.revision
+  local missingPanelComponents = panelRegistry:register("panel_mod", {
+    id="panel_contract", version="1.0.1", games={"gen2"}, actions={},
+    screens={{id="panel_screen", type="panel", preset="M"}}, extensions={}
+  })
+  T.check(not missingPanelComponents.ok
+      and missingPanelComponents.error.code == "invalid_screen"
+      and panelRegistry.revision == panelRevision,
+    "V3 rejects panel descriptors without components atomically")
+  local malformedPanel = panelRegistry:register("panel_mod", {
+    id="panel_contract", version="1.0.1", games={"gen2"}, actions={},
+    screens={{id="panel_screen", type="panel", preset="M", components={{
+      {id="choice", type="dropdown", options={{id="one", label="ONE"}}},
+    }}}}, extensions={}
+  })
+  T.check(not malformedPanel.ok
+      and malformedPanel.error.code == "invalid_screen"
+      and panelRegistry.revision == panelRevision,
+    "V3 rejects malformed nested panel options atomically")
+  local duplicatePanel = panelRegistry:register("panel_mod", {
+    id="panel_contract", version="1.0.1", games={"gen2"}, actions={},
+    screens={{id="panel_screen", type="panel", preset="M", components={
+      {id="same", type="label", text="ONE"},
+      {id="same", type="label", text="TWO"},
+    }}}, extensions={}
+  })
+  T.check(not duplicatePanel.ok
+      and duplicatePanel.error.code == "invalid_screen"
+      and panelRegistry.revision == panelRevision,
+    "V3 rejects duplicate panel component IDs atomically")
+  local presentationRevision = registry.revision
+  local badPresentation = registry:register("presentation_mod", {
+    id="bad_presentation", version="1.0.0", games={"gen2"}, actions={},
+    screens={{id="bad_dialogue", kind="dialogue", preset="XS",
+      lines={"MISSING SCHEMA"}}},
+  })
+  T.check(not badPresentation.ok
+      and badPresentation.error.code == "invalid_screen"
+      and registry.revision == presentationRevision,
+    "V3 rejects non-canonical direct presentation screens atomically")
 
   local Host = loadModule("v3.host")
   local host = Host.new({ registry=registry, productId="test_clean_ui",
-    game="gen2", capabilities={ dropdown="0.1.0" } })
+    game="gen2", capabilities={ dropdown="0.1.0",
+      contract_catalog="0.1.0", presentation_models="0.1.0" } })
   T.check(host.supports("dropdown", "0.1.0")
     and host:supports("dropdown", "0.1.0"),
     "V3 host supports dot and colon invocation")
+  T.check(host.supports("contract_catalog", "0.1.0")
+      and type(host.listContracts) == "function",
+    "V3 host advertises the editor contract catalog")
+  T.check(host.supports("presentation_models", "0.1.0"),
+    "V3 host advertises canonical presentation models")
+  local publicContracts = assert(host:listContracts())
+  T.check(#publicContracts == 1
+      and publicContracts[1].ownerId == "sample_mod"
+      and publicContracts[1].actionIds[1] == "open"
+      and publicContracts[1].actions == nil
+      and publicContracts[1].screens[1].id == "sample_screen",
+    "editor contract catalog exposes data without runtime callbacks")
+  T.equal(#host:listContracts({ ownerId="missing" }), 0,
+    "editor contract catalog supports owner filtering")
+  local Content = loadModule("shell.content")
+  local editorModel = Content.v3Model({
+    id="editor_screen", type="panel", title="EDITOR SCREEN", preset="M",
+    components={
+      { type="label", id="intro", text="EDITOR FIXTURE" },
+      { type="dropdown", id="mode", label="MODE", value="map",
+        options={{id="map",label="MAP",value="map"}}, action="set_mode" },
+      { type="button", id="apply", label="APPLY", action="apply" },
+    }, footer={text="A CHOOSE   B BACK"},
+  })
+  T.check(editorModel.kind == "menu" and editorModel.rows[1].disabled
+      and editorModel.rows[2].kind == "v3_dropdown"
+      and editorModel.rows[2].value == "map"
+      and editorModel.rows[3].kind == "v3_action",
+    "V3 panel descriptors convert into an editor-preview menu model")
+  T.equal(editorModel.selected, 2,
+    "V3 editor focus starts on the first actionable component")
+  local EditorState = loadModule("shell.state")
+  local editorState = EditorState.new("v3_screen", { model=editorModel })
+  editorState.index = editorModel.selected
+  editorState:moveSelectable(-1, editorModel.rows)
+  T.equal(editorState.index, 3,
+    "V3 editor navigation skips disabled label rows")
+
+  local dialogueModel = Content.v3Model({
+    id="dialogue_preview", kind="dialogue",
+    schema="clean_ui.v3.presentation.v1", apiVersion=3,
+    preset="XS", anchor="bottom",
+    lines={"A direct V3 dialogue screen renders through the shared path."},
+    inputReady=true, more=true, controls="A/B CONTINUE",
+  })
+  local choiceModel = Content.v3Model({
+    id="choice_preview", kind="choice",
+    schema="clean_ui.v3.presentation.v1", apiVersion=3,
+    preset="XS", anchor="bottom",
+    selected=1, inputReady=true,
+    options={{id="yes", label="YES", value=true},
+      {id="no", label="NO", value=false}},
+  })
+  local animationModel = Content.v3Model({
+    id="animation_preview", kind="animation",
+    schema="clean_ui.v3.presentation.v1", apiVersion=3,
+    preset="ANIMATION",
+    animation={id="battle.move", frame=4, duration=8,
+      label="MOVE EFFECT", message="A timed V3 animation frame."},
+  })
+  local deviceModel = Content.v3Model({
+    id="device_preview", kind="device",
+    schema="clean_ui.v3.presentation.v1", apiVersion=3,
+    preset="L", appShell=true,
+    device={ kind="smartphone", family="fixture",
+      orientation="landscape", aspect="16:9" },
+    statusBar={ time="10:37 AM", region="JOHTO" },
+    launcher={ selected=1 },
+    apps={{ id="clock", label="CLOCK", selected=true },
+      { id="map", label="MAP" }},
+    activeApp={ id="clock", label="CLOCK" },
+    screen={ id="clock", title="CLOCK" },
+    rows={}, details={{ label="TIME", value="10:37 AM" }},
+    description="LEFT/RIGHT CARD   B BACK",
+  })
+  local mapModel = Content.v3Model({
+    id="map_preview", kind="map",
+    schema="clean_ui.v3.presentation.v1", apiVersion=3,
+    preset="L",
+    map={
+      region="JOHTO",
+      rows={{ id="route29", name="ROUTE 29", index=1,
+        x=0, y=0, selected=true }},
+      current={ name="ROUTE 29", index=1 },
+      player={ name="ROUTE 29", index=1 },
+      graphic={ kind="tilemap", width=2, height=2,
+        sheet={ path="assets/generated/map/tiles.png", wide=2 },
+        map={0, 1, 2, 3},
+      },
+    },
+    description="UP/DOWN LANDMARK   B BACK",
+  })
+  T.check(dialogueModel.kind == "dialogue"
+      and choiceModel.kind == "choice"
+      and animationModel.kind == "animation"
+      and deviceModel.kind == "device"
+      and mapModel.kind == "map"
+      and Content.isV3Screen(dialogueModel)
+      and Content.isV3Screen(choiceModel)
+      and Content.isV3Screen(animationModel)
+      and Content.isV3Screen(deviceModel)
+      and Content.isV3Screen(mapModel),
+    "V3 direct dialogue, choice, device, map, and animation models are editor-preview screens")
+  T.check(Content.v3Model({ id="invalid_dialogue", kind="dialogue",
+      preset="XS", lines={} }) == nil,
+    "V3 rejects direct presentation models without the canonical schema")
+  T.check(Content.v3Model({ id="sparse_menu", kind="menu",
+      schema="clean_ui.v3.presentation.v1", apiVersion=3, preset="M",
+      rows={ [2]={ id="two", label="TWO" } }, selected=1 }) == nil,
+    "V3 rejects sparse menu collections before layout")
+  T.check(Content.v3Model({ id="scalar_dialogue", kind="dialogue",
+      schema="clean_ui.v3.presentation.v1", apiVersion=3, preset="XS",
+      lines={ "OK", 2 } }) == nil,
+    "V3 rejects non-text dialogue lines before rendering")
+  T.check(Content.v3Model({ id="bad_battle", kind="battle",
+      schema="clean_ui.v3.presentation.v1", apiVersion=3, preset="BATTLE",
+      player={}, enemy={}, actions={{ id="fight", label="FIGHT" }},
+      selectedAction="1" }) == nil,
+    "V3 rejects non-integer battle selections before dispatch")
+  T.check(Content.v3Model({ id="bad_device", kind="device",
+      schema="clean_ui.v3.presentation.v1", apiVersion=3, preset="L",
+      device={kind="smartphone", orientation="diagonal"} }) == nil
+      and Content.v3Model({ id="bad_map", kind="map",
+        schema="clean_ui.v3.presentation.v1", apiVersion=3, preset="L",
+        map={region="JOHTO", rows={}, graphic={kind="tilemap", width=2,
+          height=2, sheet={path="map.png", wide=2}, map={0, 1, 2}}} }) == nil,
+    "V3 rejects malformed device orientation and incomplete map tile data")
+  T.check(Content.v3Model({ id="bad_overlay", kind="animation",
+      schema="clean_ui.v3.presentation.v1", apiVersion=3, preset="ANIMATION",
+      animation={id="battle.transition", overlay=true,
+        overlays={ [2]={x=0,y=0,w=1,h=1,color={0,0,0,1}} } } }) == nil
+      and Content.v3Model({ id="valid_overlay", kind="animation",
+        schema="clean_ui.v3.presentation.v1", apiVersion=3,
+        preset="ANIMATION", animation={id="battle.transition",
+          overlay=true, overlays={{x=0,y=0,w=1,h=1,color={0,0,0,1}}}} }) ~= nil,
+    "V3 validates transparent animation overlays as dense data")
+  T.check(Content.v3Model({ id="bad_overlay_shape", kind="animation",
+      schema="clean_ui.v3.presentation.v1", apiVersion=3,
+      preset="ANIMATION", animation={id="battle.transition", overlay=true,
+        overlays={{x=0.9,y=0,w=0.2,h=1,color={0,0,2,1}}}} }) == nil,
+    "V3 rejects out-of-bounds overlay rectangles and invalid colors")
+  T.check(Content.v3Model({ id="circle_animation", kind="animation",
+      schema="clean_ui.v3.presentation.v1", apiVersion=3,
+      preset="ANIMATION", animation={id="evolution.reveal", overlay=true,
+        circles={{x=0.5,y=0.4,radius=4/160,color={1,0.8,0.2,1}}}}}) ~= nil
+      and Content.v3Model({ id="bad_circle_animation", kind="animation",
+        schema="clean_ui.v3.presentation.v1", apiVersion=3,
+        preset="ANIMATION", animation={id="evolution.reveal",
+          circles={{x=0.5,y=0.4,radius=0}}}}) == nil,
+    "V3 validates normalized animation circles for source-authored effects")
+  T.check(Content.v3Model({ id="tilemap_animation", kind="animation",
+      schema="clean_ui.v3.presentation.v1", apiVersion=3,
+      preset="ANIMATION", animation={id="intro.movie", tilemap={
+        path="assets/generated/intro/water_tiles.png", tileWidth=8,
+        tileHeight=8, mapWidth=2, mapHeight=2, sheetColumns=2,
+        logicalWidth=16, logicalHeight=4, tiles={0,1,2,3},
+        scanlineOffsets={{x=0,y=0},{x=1,y=0},{x=0,y=1},{x=1,y=1}},
+      }}}) ~= nil
+      and Content.v3Model({ id="bad_tilemap_animation", kind="animation",
+        schema="clean_ui.v3.presentation.v1", apiVersion=3,
+        preset="ANIMATION", animation={id="intro.movie", tilemap={
+          path="assets/generated/intro/water_tiles.png", tileWidth=8,
+          tileHeight=8, mapWidth=2, mapHeight=2, sheetColumns=2,
+          logicalWidth=16, logicalHeight=16, tiles={0,1,2},
+        }}}) == nil,
+    "V3 validates tilemap dimensions and scanline offsets")
+  T.check(Content.v3Model({ id="label_animation", kind="animation",
+      schema="clean_ui.v3.presentation.v1", apiVersion=3,
+      preset="ANIMATION", animation={id="credits.roll", overlay=true,
+        labels={{text="PORT STAFF", x=0.5, y=0.25, align="center",
+          maxWidth=0.8, color={1, 1, 1, 1}}}}}) ~= nil
+      and Content.v3Model({ id="bad_label_animation", kind="animation",
+        schema="clean_ui.v3.presentation.v1", apiVersion=3,
+        preset="ANIMATION", animation={id="credits.roll", labels={
+          {text="BAD", x=1.1, y=0.2}}}}) == nil,
+    "V3 validates normalized animation text layers")
+  T.check(Content.v3Model({ id="offscreen_sprite_animation", kind="animation",
+      schema="clean_ui.v3.presentation.v1", apiVersion=3,
+      preset="ANIMATION", animation={id="boot.gamefreak", overlay=true,
+        sprites={{path="assets/generated/splash/star.png", normalized=true,
+          rect={x=-8/160, y=48/144, w=8/160, h=8/144},
+          crop={x=0, y=0, w=8, h=8}}}}}) ~= nil
+      and Content.v3Model({ id="bad_normalized_sprite", kind="animation",
+        schema="clean_ui.v3.presentation.v1", apiVersion=3,
+        preset="ANIMATION", animation={id="boot.gamefreak",
+          sprites={{path="x", normalized="yes"}}}}) == nil,
+    "V3 validates explicit normalized coordinates for offscreen sprites")
+  T.check(Content.v3Model({ id="bad_sprite_rect", kind="animation",
+      schema="clean_ui.v3.presentation.v1", apiVersion=3,
+      preset="ANIMATION", animation={id="boot.gamefreak",
+        sprites={{path="x", normalized=true,
+          rect={x=0, y=0, w=0, h=8}}}}}) == nil
+      and Content.v3Model({ id="bad_sprite_crop", kind="animation",
+        schema="clean_ui.v3.presentation.v1", apiVersion=3,
+        preset="ANIMATION", animation={id="boot.gamefreak",
+          sprites={{path="x", normalized=true,
+            rect={x=0, y=0, w=1, h=1}, crop={x=0, y=0, w=0, h=8}}}}}) == nil,
+    "V3 rejects incomplete animation sprite geometry before rendering")
+  local directScreen = runtime.shell:createState(fakeGame, "v3_screen")
+  T.check(runtime.shell:openV3Screen(directScreen, dialogueModel, {})
+      and directScreen.model.view == "v3_screen"
+      and directScreen.model.payload.model.kind == "dialogue",
+    "V3 shell opens a direct dialogue screen result")
+  local animationScreen = { id="animation_preview", kind="animation",
+    preset="ANIMATION", schema="clean_ui.v3.presentation.v1", apiVersion=3,
+    animation={id="battle.move", frame=2, duration=4, label="MOVE"} }
+  local animationLayout = runtime:measureV3(animationScreen, 640, 360, {
+    font = love.graphics.newFont(15) })
+    T.check(animationLayout and animationLayout.v3Model.kind == "animation"
+      and animationLayout.stage and animationLayout.progress,
+    "core V3 embedding bridge measures direct animation models")
+  local deviceLayout = runtime:measureV3(deviceModel, 640, 360, {
+    font = love.graphics.newFont(15) })
+  T.check(deviceLayout and deviceLayout.v3Model.kind == "device"
+      and deviceLayout.shell and deviceLayout.shell.orientation == "landscape",
+    "core V3 embedding bridge measures first-class device models")
+  local mapLayout = runtime:measureV3(mapModel, 640, 360, {
+    font = love.graphics.newFont(15) })
+  T.check(mapLayout and mapLayout.v3Model.kind == "map"
+      and mapLayout.mapView and #mapLayout.mapMarkers == 1,
+    "core V3 embedding bridge measures first-class map models")
+  local transitionLayout = runtime:measureV3({
+    id="transition_preview", kind="animation",
+    schema="clean_ui.v3.presentation.v1", apiVersion=3,
+    preset="ANIMATION", animation={id="battle.transition", overlay=true,
+      overlays={{x=0,y=0,w=1,h=1,color={0,0,0,1}}}},
+  }, 360, 640, { font = love.graphics.newFont(15) })
+  T.check(transitionLayout and transitionLayout.stage.w == 360
+      and transitionLayout.stage.h == 640
+      and transitionLayout.caption.w == 0,
+    "V3 transition overlays use the full portrait viewport without a panel")
+  T.check(not runtime.shell:openV3Screen(directScreen, {
+      id="invalid_dialogue", kind="dialogue",
+      schema="clean_ui.v3.presentation.v1", apiVersion=2, preset="XS",
+      lines={}, inputReady=true }, {}),
+    "V3 shell rejects invalid direct action results")
+
+  -- V3-EDITOR-FIXTURE-001: the checked-in fixture must remain a valid,
+  -- callback-free catalog target for editor tooling.
+  local fixtureSource = assert(love.filesystem.read(
+    "examples/ui-editor-fixture/mods/clean_ui_example_editor_fixture/contract.lua"))
+  local fixtureChunk = assert(loadstring(fixtureSource,
+    "@ui-editor-fixture/contract.lua"))
+  local fixtureFactory = fixtureChunk()
+  local fixtureContract = fixtureFactory({
+    log = { info = function() end },
+  })
+  local fixtureRegistry = Registry.new("gen2")
+  T.check(fixtureRegistry:register("clean_ui_example_editor_fixture",
+      fixtureContract).ok,
+    "checked-in editor fixture passes the real V3 validator")
+  local fixtureHost = Host.new({ registry=fixtureRegistry,
+    productId="test_clean_ui", game="gen2",
+    capabilities={ contract_catalog="0.1.0" } })
+  local fixtureDescriptor = assert(fixtureHost:listContracts({
+    id="ui_editor_fixture" }))[1]
+  T.check(fixtureDescriptor and fixtureDescriptor.screens[1].id
+      == "editor_playground" and fixtureDescriptor.screens[2].kind == "menu"
+      and fixtureDescriptor.screens[3].kind == "dialogue"
+      and fixtureDescriptor.screens[4].kind == "choice"
+      and fixtureDescriptor.screens[5].kind == "battle"
+      and fixtureDescriptor.screens[6].kind == "animation"
+      and fixtureDescriptor.screens[7].kind == "device"
+      and fixtureDescriptor.screens[8].kind == "map"
+      and fixtureDescriptor.actionIds[1] == "apply"
+      and fixtureDescriptor.actions == nil,
+    "editor fixture is available as callback-free catalog data for all V3 kinds")
+  local fixtureDialogue = fixtureContract.actions.open_dialogue()
+  local fixtureChoice = fixtureContract.actions.open_choice()
+  local fixtureBattle = fixtureContract.actions.open_battle()
+  local fixtureAnimation = fixtureContract.actions.open_animation()
+  local fixtureDevice = fixtureContract.actions.open_device()
+  local fixtureMap = fixtureContract.actions.open_map()
+  T.check(Content.v3Model(fixtureDialogue).kind == "dialogue"
+      and Content.v3Model(fixtureChoice).kind == "choice"
+      and Content.v3Model(fixtureBattle).kind == "battle"
+      and Content.v3Model(fixtureAnimation).kind == "animation"
+      and Content.v3Model(fixtureDevice).kind == "device"
+      and Content.v3Model(fixtureMap).kind == "map"
+      and Content.isV3Screen(fixtureDialogue),
+    "editor fixture opens direct V3 dialogue, choice, battle, device, map, and animation results")
 
   local Catalog = loadModule("integration.catalog")
   local Pins = loadModule("integration.pins")

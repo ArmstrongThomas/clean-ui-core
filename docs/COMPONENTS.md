@@ -19,8 +19,10 @@ Every component has:
 | `style` | string/table | Semantic style token or validated overrides. |
 | `layout` | table | Declarative width, span, alignment, wrap, and scroll hints. |
 
-Unknown fields are rejected in strict descriptors. Required content cannot be
-marked decorative to bypass overflow checks.
+Unknown screen, component, option, field, and footer-list fields are rejected
+in strict descriptors. Layout/style override tables remain intentionally
+extensible data owned by the presenter. Required content cannot be marked
+decorative to bypass overflow checks.
 
 Component IDs are the focus and reconciliation identity. Changing a label does
 not create a new component; changing an ID does.

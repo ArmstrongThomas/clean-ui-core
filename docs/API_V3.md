@@ -58,22 +58,24 @@ Each product exports:
 ```lua
 mod.exports.cleanUiHost = {
   apiVersion = 3,
-  coreVersion = "0.1.0",
+  coreVersion = "0.1.0-alpha.12",
   productId = "gen2_clean_ui", -- or gen1_clean_ui
   game = "gen2",               -- or gen1
   capabilities = {
-    data_screens = "1.0.0",
-    additive_extensions = "1.0.0",
-    dropdown = "1.0.0",
-    modal_overlay = "1.0.0",
-    custom_fields = "1.0.0",
-    footer_lists = "1.0.0",
-    custom_surface = "1.0.0",
-    isolated_shader = "1.0.0",
-    themes = "1.0.0",
-    frames = "1.0.0",
-    gallery = "1.0.0",
-    start_menu_pinning = "1.0.0",
+    data_screens = "0.1.0",
+    additive_extensions = "0.1.0",
+    dropdown = "0.1.0",
+    modal_overlay = "0.1.0",
+    custom_fields = "0.1.0",
+    footer_lists = "0.1.0",
+    custom_surface = "0.1.0",
+    isolated_shader = "0.1.0",
+    themes = "0.1.0",
+    frames = "0.1.0",
+    gallery = "0.1.0",
+    contract_catalog = "0.1.0",
+    presentation_models = "0.1.0",
+    start_menu_pinning = "0.1.0",
   },
 
   supports = function(capability, minimumVersion) ... end,
@@ -87,6 +89,225 @@ mod.exports.cleanUiHost = {
 success or `nil, code, message` for expected failures. They do not throw for a
 bad third-party contract. `openGallery(filter)` returns `true`, or the same
 structured error tuple when Gallery cannot be opened.
+
+### Editor contract catalog
+
+Standalone tools may feature-detect `contract_catalog` and call
+`host.listContracts(filter)` to inspect the V3 registrations available in the
+running product. The returned descriptors are deterministic, copied data: they
+include declarative screens, extensions, surfaces, themes, frames, Gallery
+metadata, and sorted `actionIds`, but never return action, draw, update, or
+validator functions. The optional filter supports `ownerId` and contract `id`.
+
+```lua
+local host = dependency.exports.cleanUiHost
+if host:supports("contract_catalog", "0.1.0") then
+  local contracts = host:listContracts({ ownerId = "my_ui_editor_fixture" })
+  -- Render or edit the returned data without executing source callbacks.
+end
+```
+
+This catalog is an inspection bridge for editor and diagnostics tooling; it
+does not grant ownership of a source screen or allow a tool to invoke an
+action. Actions still execute only through the registered contract and the
+source-owned dispatcher.
+
+### Direct presentation-model screens
+
+The shell also accepts a direct V3 presentation model as a screen descriptor
+for editor previews and source-owned action results. The supported model kinds
+are `menu`, `dialogue`, `choice`, `battle`, `animation`, `device`, and `map`;
+each uses the same
+data-only model vocabulary as the product presentation runtime. For example:
+
+```lua
+{
+  id = "dialogue_preview",
+  kind = "dialogue",
+  schema = "clean_ui.v3.presentation.v1",
+  apiVersion = 3,
+  preset = "XS",
+  anchor = "bottom",
+  lines = { "A complete message can reflow across the available surface." },
+  inputReady = true,
+  more = true,
+  controls = "A/B CONTINUE",
+}
+```
+
+This does not replace source-owned timing or input. The product remains
+responsible for extracting live state and dispatching actions; V3 gives that
+runtime and the standalone editor one stable, inspectable model shape.
+
+`device` models require a data-only `device` descriptor with a non-empty
+`kind`, optional `family`/`title`, and a `portrait` or `landscape` orientation
+when one is known. Optional `apps`, `activeApp`, `statusBar`, `launcher`, and
+`navigation` fields describe a responsive handheld shell without embedding a
+renderer or callback. `map` models require a data-only `map` descriptor with
+a non-empty `region` and dense marker rows. Optional `current`, `player`, and
+`flyRows` fields preserve source selection state. A native-art tilemap graphic
+may include a positive `width`/`height`, a source sheet, dense tile arrays, a
+cursor sheet, and palette metadata; missing art remains a valid fail-open
+state rather than a reason to invent a placeholder graphic.
+
+### Naming keyboard presentation
+
+A menu presentation may carry an optional `naming` descriptor when the source
+screen owns a naming cursor but the product supplies the visual keyboard. The
+descriptor is data-only and keeps the source's zero-based cursor and action
+semantics intact:
+
+```lua
+{
+  entry = { text = "TOT", sourceLength = 3, maxLength = 10 },
+  case = "upper",
+  keyboard = {
+    columns = 9,
+    rows = { { "A", "B", "C" } },
+    bottom = { { label = "lower" }, { label = "DEL" }, { label = "END" } },
+  },
+  cursor = { row = 0, col = 0, bottomRow = false },
+}
+```
+
+Core renders the entry slots and card grid, while the source remains
+authoritative for movement, character insertion, case changes, deletion, and
+completion. Products must leave unsupported naming contexts native and must
+not invent submit or delete callbacks in the presentation model.
+
+### V3 gap register
+
+The device/map gap is closed for the declarative visual model: Core validates
+and renders first-class `device` and `map` kinds, and products can publish
+callback-free shell, marker, tilemap, and Fly data without Gen2-specific menu
+extensions. Source-owned navigation and asset loading remain outside the
+model, as they do for every direct V3 presentation.
+
+The remaining roadmap gap is live animation timing and source identity. An
+`animation` model describes
+  one deterministic visual frame; it does not own a scheduler, source input,
+  gameplay mutation, or the identity of a complete child stack. Intro/send-out,
+  move/item, faint, experience, and other timing-heavy battle states therefore
+  remain source-owned or fail-open until the host supplies those seams. A
+  custom surface is not a substitute for missing source ownership evidence.
+
+This is a roadmap gap, not an advertised capability. It must be implemented
+in Core with validation, responsive layout/rendering, Gallery fixtures, and
+editor parity before a product claims timing-heavy animation ownership as
+fully portable V3. Until then, products should keep using canonical V3 models
+and explicitly document source-owned timing and child-stack boundaries.
+
+The experimental live battle scene-frame and ownership-latch architecture is
+deferred and archived. Core does not advertise live battle reconstruction;
+products must keep battle native/deferred until a replacement design proves
+source identity, timing, suppression, and complete visible-stack ownership.
+
+### Panel screen descriptors
+
+The component-oriented screen shape is a strict V3 panel descriptor:
+
+```lua
+{
+  id = "encounter_reference",
+  type = "panel",
+  preset = "M",
+  components = {
+    { id = "route", type = "label", text = "ROUTE 29" },
+    { id = "mode", type = "dropdown", label = "MODE", value = "day",
+      options = { { id = "day", label = "DAY", value = "day" } } },
+  },
+}
+```
+
+Registration validates the panel ID, preset, dense component and nested option
+arrays, unique component IDs, known component fields, and the required payload
+for each component type. Details fields/footer lists, modal options, status-card
+metadata, and named action references are validated before the registry swaps a
+new contract into place. A malformed panel therefore fails atomically and never
+reaches the renderer. Studio uses the same rules locally so an editor project
+can be rejected before export or host registration.
+
+An `animation` model is the direct V3 shape for a timed visual frame that is
+not itself an interactive menu. It requires an `animation.id` and may expose
+`frame`/`duration` or normalized `progress`, a display `label`/`message`, and
+data-only sprite or overlay descriptors. Set `animation.overlay = true` for a
+transparent full-viewport effect that decorates a source-owned underlay; its
+normalized `animation.overlays` are painted in order and can carry RGBA
+`color` arrays. Each overlay uses normalized `x`, `y`, `w`, and `h` values,
+must fit inside the `[0,1]` viewport, and may use three or four channel values
+between `0` and `1`. This is the V3 seam for timed wipes and transitions
+without inventing a centered panel over the world. The source still owns the
+clock, cancellation, and gameplay mutation; the model makes the visual state
+available to the shared renderer and editor without smuggling a callback into
+the contract. Ordered `animation.circles` may add source-authored filled
+particle effects. A circle uses normalized `x`/`y` coordinates (centers may
+extend from `-1` to `2` for off-screen effects), a normalized `radius` measured
+against the stage width, and optional RGB/RGBA `color`. Ordered
+`animation.tilemap` is the portable seam for source-authored scrolling raster
+backgrounds. It names an asset `path`, source-pixel `tileWidth`/`tileHeight`,
+the `mapWidth`/`mapHeight` tile grid, `sheetColumns`, and a dense `tiles` array.
+Optional source-pixel `scrollX`/`scrollY` values preserve camera movement;
+`scanlineOffsets` can provide one finite `{x, y}` offset per logical scanline
+for effects such as Gen II's water wave. The renderer expands the tilemap at
+the current responsive stage while preserving the source palette and crop
+data.
+`animation.tilemap` is intentionally data-only: the product still owns frame
+timing, input, and source-state mutation. Ordered
+`animation.labels` may add source-authored text over the
+animation. A label has normalized `x`/`y` coordinates, string `text`, and an
+optional `align` (`left`, `center`, or `right`), normalized `maxWidth`, and
+RGBA `color`. Labels are rendered after sprites, so a cinematic can keep its
+art and text in one portable V3 model without falling back to a product-only
+text renderer.
+
+`animation.backgroundSprites` is an optional ordered sprite layer painted
+before `animation.tilemap`; it is useful for source effects whose objects pass
+behind a scrolling background. `animation.sprites` is painted after the
+tilemap. Sprite descriptors normally infer normalized rectangles when all four
+coordinates fit within `0..1`. A descriptor may set `normalized = true` to
+keep normalized coordinates outside that range, which is useful for cropped
+sprites entering or leaving the viewport (such as source OAM animation). The
+flag is data-only and keeps the same model portable across portrait,
+landscape, and high-resolution layouts. Every sprite descriptor must provide a
+non-empty `path` (or `asset`) and a complete positive `rect`; optional crops
+must use a non-negative integer origin and positive integer size, and optional
+flips and palettes are validated before the model reaches the renderer. This
+makes missing geometry a contract error instead of a late, silent draw failure.
+
+Direct presentation models must include `schema =
+"clean_ui.v3.presentation.v1"`, `apiVersion = 3`, and a non-empty `preset`.
+The registry rejects a direct screen that omits or mismatches any of those
+fields atomically. Ordered payloads are dense arrays: menu rows, dialogue
+lines, choice options, battle actions, animation sprites, animation overlays,
+  and animation labels/circles/tilemap data cannot be keyed maps, contain holes, contain the wrong
+item type, or
+escape their normalized bounds. Present selection fields
+must be positive integer indices. Panel descriptors remain the
+component-oriented shape; the shell converts validated panels to the same canonical
+menu model before rendering. The shared presentation runtime applies the same
+validation immediately before measurement and rendering, so a malformed or
+non-canonical direct model cannot reach the renderer through a product provider
+or action result. Legacy/custom surfaces remain the explicit compatibility
+escape hatch and are validated by their own surface contract.
+
+Generation providers should apply the same V3 marker gate before suppression:
+when a registered record declares `presentationApi = 3`, a prepared model must
+carry the canonical schema, `apiVersion = 3`, and a non-empty `kind`. Missing
+markers fail open to the source UI before offscreen composition; Core remains
+the final full-shape validator. This two-stage boundary keeps diagnostics close
+to the product seam without duplicating Core's complete model rules.
+
+### Standalone embedding bridge
+
+The source runtime also exposes a small embedding bridge for tools such as
+Clean UI Studio. `validateV3(contract)` returns data-only diagnostics,
+`measureV3(screen, width, height, options)` solves the responsive envelope and
+measures the canonical presentation model, and `drawV3`/`renderV3` reuse the
+same presentation renderer. These methods are intentionally lower-level than
+`cleanUiHost`: they are for an editor or test harness that boots the core
+source beside its own window, not for product mods to call through private
+state. A tool may use them when available and retain a portable fallback when
+the core checkout is not bundled.
 
 ## Contract shape
 
@@ -110,9 +331,35 @@ local contract = {
 }
 ```
 
-Required fields are `id`, `version`, and `games`. IDs use lower-case ASCII
-letters, digits, `_`, `.`, and `-`; they must begin and end with a letter or
-digit. The running product game must appear in `games`. `priority` defaults to
+Required fields are `id` and `version`, plus either `games` or the universal
+flag `all_generations = true`. IDs use lower-case ASCII letters, digits, `_`,
+`.`, and `-`; they must begin and end with a letter or digit. The running
+product game must appear in `games` unless `all_generations` is true.
+
+Use the flag when the same contract, screen models, and named actions are
+valid for every Clean UI generation:
+
+```lua
+local contract = {
+  id = "shared_party_tools",
+  version = "1.0.0",
+  all_generations = true,
+  screens = { ... },
+  actions = { open = function(ctx, payload) ... end },
+}
+```
+
+This is a contract-level declaration: one registration is accepted by both
+`gen1_clean_ui` and `gen2_clean_ui`, and the editor catalog preserves the flag.
+The package manifest must still list the generations it wants the launcher to
+load, because manifest filtering happens before a V3 host can be discovered.
+Use `ctx.game` or the host's `game` field only when source data genuinely
+differs; the flag does not pretend that generation-specific state has the same
+shape.
+
+`games` remains supported for generation-specific or selectively shared
+contracts. If present alongside `all_generations = true`, it is retained as
+descriptive metadata but does not limit registration. `priority` defaults to
 zero and should be changed only when ordering is meaningful.
 
 The registry key is `ownerId + contract.id`. Registering that key again stages
@@ -145,6 +392,11 @@ Functions are accepted only in these documented slots:
 The registry copies validated data. Re-register to publish a changed static
 model. Live source-state models are extracted by a generation product provider,
 not captured from a third-party closure.
+
+Every `action` reference inside a declarative screen is checked against the
+contract's `actions` table during registration. A missing or malformed named
+action rejects the complete registration and leaves an existing replacement
+untouched; it is not deferred until a user activates the component.
 
 ## Data-first screens
 

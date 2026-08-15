@@ -24,5 +24,7 @@ jobs:
       - name: Run core tests
         run: |
           cp -R src tests/src
-          trap 'rm -rf tests/src' EXIT
+          mkdir -p tests/examples
+          cp -R examples/ui-editor-fixture tests/examples/ui-editor-fixture
+          trap 'rm -rf tests/src tests/examples' EXIT
           xvfb-run --auto-servernum love tests
