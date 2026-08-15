@@ -12,7 +12,9 @@ One Gallery opens for the running product:
 - Gen1 shows Gen1 production fixtures and compatible shared integrations.
 - Gen2 shows Gen2 production fixtures and compatible shared integrations.
 - Third-party V3 fixtures appear only when their `games` includes the running
-  game.
+  game. A contract may use `all_generations = true` to declare that its shared
+  screens and actions apply to every Clean UI product; fixture metadata should
+  still use `games` when the fixture itself is generation-specific.
 
 Tooling may request an unfiltered catalog, but the player-facing Gallery never
 mixes generations.
@@ -176,4 +178,3 @@ the runtime namespaces them by owner and contract.
 Fixtures should demonstrate behavior, not depend on a particular save. Prefer
 literal species names, values, and placeholder asset IDs that are legal in
 both products when `games` contains both generations.
-

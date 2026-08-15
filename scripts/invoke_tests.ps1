@@ -76,6 +76,12 @@ Get-ChildItem -LiteralPath (Join-Path $root "src\clean_ui") -Force |
   ForEach-Object {
     Copy-Item -LiteralPath $_.FullName -Destination $bundleCore -Recurse -Force
   }
+# The editor fixture is a source-level contract target, so keep it available
+# to the bundled V3 integration test without copying the whole example tree.
+$bundleExamples = Join-Path $bundle "examples"
+New-Item -ItemType Directory -Path $bundleExamples -Force | Out-Null
+Copy-Item -LiteralPath (Join-Path $root "examples\ui-editor-fixture") `
+  -Destination (Join-Path $bundleExamples "ui-editor-fixture") -Recurse -Force
 
 $environmentNames = @(
   "CLEAN_UI_TEST_SUITE", "CLEAN_UI_TEST_FILTER", "CLEAN_UI_TEST_SEED")

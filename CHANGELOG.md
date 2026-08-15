@@ -1,5 +1,25 @@
 # Changelog
 
+## Unreleased
+
+- Added first-class V3 `device` and `map` presentation kinds with strict
+  descriptor, marker, tilemap, and cursor-sheet validation plus the shared
+  responsive menu renderer and embedding bridge.
+- Added Core editor-fixture coverage for both direct kinds. The remaining V3
+  gap is live source-owned animation timing, source identity, and complete
+  child-stack ownership; products continue to fail open at those boundaries.
+- Hardened the V3 battle presenter so message, command-menu, and four-move
+  phases reserve the same battlefield envelope instead of shrinking the HUD;
+  player status cards now place HP above EXP consistently.
+- Fixed live battle OAM animation crop resolution to preserve both values
+  returned by the animation-sheet lookup. Optional effect-sheet failures now
+  skip only that effect tile, keeping the Clean UI frame active instead of
+  exposing the native battle renderer.
+- Added the V3 `all_generations = true` contract flag. A shared contract can
+  now register against every Clean UI generation without duplicating its
+  `games` list; manifests still declare launcher eligibility, and the editor
+  catalog preserves the universal declaration.
+
 ## 0.1.0-alpha.10 — 2026-08-13
 
 - Added content-driven NAV shell width, clamped to 320–440 logical pixels and

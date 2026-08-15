@@ -78,7 +78,8 @@ clean-ui-core/
 │   ├── start-action-pinning/
 │   ├── details-fields-footer-lists/
 │   ├── modal-overlay/
-│   └── animated-shader-grid/
+│   ├── animated-shader-grid/
+│   └── ui-editor-fixture/
 ├── scripts/
 │   ├── build_example.ps1
 │   ├── build_example.cmd
@@ -466,14 +467,14 @@ Core never writes `render_visible` directly; only the product’s suppression im
 
 | File | Responsibility |
 |---|---|
-| `v3/capabilities.lua` | Capability names and minimum versions. |
-| `v3/contract_schema.lua` | Full V3 contract validation. |
+| `core.lua` | Capability names and runtime composition. |
+| `v3/panel.lua` | Strict panel/component descriptor validation shared by registration and previews. |
+| `v3/contract.lua` | V3 contract validation and editor-safe descriptors. |
 | `v3/registry.lua` | Atomic owner/contract storage and deterministic indexes. |
-| `v3/actions.lua` | Named action lookup, protected dispatch, error reporting. |
-| `v3/screens.lua` | Validated data-first screen contributions. |
-| `v3/extensions.lua` | Start/menu/row/Party/Summary/Pokédex extension indexes. |
-| `v3/themes.lua` | Registered theme/frame contributions. |
-| `v3/gallery.lua` | Data-only external fixtures. |
+| `shell/runtime.lua` | V3 named-action, dropdown, modal, and close dispatch. |
+| `shell/content.lua` | Generic shell models, including V3 panel previews. |
+| `integration/start_menu.lua` | Deterministic start-menu composition and V3 extension contributions. |
+| `gallery/catalog.lua` | Data-only Gallery fixtures. |
 | `v3/host.lua` | Public `cleanUiHost` facade. |
 
 Public facade:

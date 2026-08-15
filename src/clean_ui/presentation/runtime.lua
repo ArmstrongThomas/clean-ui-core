@@ -5,12 +5,15 @@ local Viewport = requireCore("geometry.viewport")
 local FontCatalog = requireCore("text.font_catalog")
 local Solver = requireCore("layout.solver")
 local Transaction = requireCore("surfaces.transaction")
+local PresentationModel = requireCore("presentation.model")
 local MenuLayout = requireCore("presentation.menu_layout")
 local MenuRender = requireCore("presentation.menu_render")
 local DialogueLayout = requireCore("presentation.dialogue_layout")
 local DialogueRender = requireCore("presentation.dialogue_render")
 local BattleLayout = requireCore("presentation.battle_layout")
 local BattleRender = requireCore("presentation.battle_render")
+local AnimationLayout = requireCore("presentation.animation_layout")
+local AnimationRender = requireCore("presentation.animation_render")
 
 local Runtime = {}
 
@@ -78,7 +81,8 @@ end
 function Runtime.new(core)
   local self = { core=core, mod=core.mod, provider=core.provider,
     candidate=nil, canvas=nil, canvasW=nil, canvasH=nil,
-    menuWidths=setmetatable({}, { __mode = "k" }), frameId=0 }
+    menuWidths=setmetatable({}, { __mode = "k" }), frameId=0,
+    frameSerial=0 }
   self.fonts = FontCatalog.new(love and love.graphics, {
     plainPixel=core.config.plainPixelPath
       or "assets/fonts/plainpixel/PlainPixel-Regular.ttf",
@@ -120,7 +124,7 @@ function Runtime.new(core)
   end
 
   function self:option(key, fallback)
-    local value = self.mod and self.mod.options and self.mod.options:get(key)
+    local value = self.core:setting(key)
     return value == nil and fallback or value
   end
 
@@ -134,7 +138,8 @@ function Runtime.new(core)
     local model = Data.snapshot(source)
     if not model then return source end
     local level = tostring(contentLevel or "NORMAL"):upper()
-    if model.kind == "menu" then
+    if model.kind == "menu" or model.kind == "device"
+        or model.kind == "map" then
       local rows = model.rows or {}
       if level == "EMPTY" then
         model.rows, model.selected, model.scroll = {}, nil, 0
@@ -199,23 +204,29 @@ function Runtime.new(core)
   end
 
   function self:measureModel(base, model, font, density, priorEntries)
-    if model.kind == "menu" then
+    if model.kind == "menu" or model.kind == "device"
+        or model.kind == "map" then
       return MenuLayout.measure(base, model, font, density)
     elseif model.kind == "dialogue" or model.kind == "choice" then
       return DialogueLayout.measure(base, model, font, density, priorEntries)
     elseif model.kind == "battle" then
       return BattleLayout.measure(base, model, font, density)
+    elseif model.kind == "animation" then
+      return AnimationLayout.measure(base, model, font, density)
     end
     return nil, "unsupported_presentation"
   end
 
   function self:drawModel(model, layout, font, theme)
-    if model.kind == "menu" then
+    if model.kind == "menu" or model.kind == "device"
+        or model.kind == "map" then
       return MenuRender.draw(love.graphics, model, layout, font, theme)
     elseif model.kind == "dialogue" or model.kind == "choice" then
       return DialogueRender.draw(love.graphics, model, layout, font, theme)
     elseif model.kind == "battle" then
       return BattleRender.draw(love.graphics, model, layout, font, theme)
+    elseif model.kind == "animation" then
+      return AnimationRender.draw(love.graphics, model, layout, font, theme)
     end
     return nil, "unsupported_presentation"
   end
@@ -290,17 +301,9 @@ function Runtime.new(core)
         local dataError
         model, dataError = Data.snapshot(sourceModel)
         if not model then return failed("invalid_model:" .. tostring(dataError)) end
-        local supported = model.kind == "menu"
-          or model.kind == "dialogue" or model.kind == "choice"
-          or model.kind == "battle"
-        if not supported or type(model.preset) ~= "string"
-            or (model.kind == "menu" and type(model.rows) ~= "table")
-            or (model.kind == "dialogue" and type(model.lines) ~= "table")
-            or (model.kind == "choice" and type(model.options) ~= "table")
-            or (model.kind == "battle" and (type(model.player) ~= "table"
-              or type(model.enemy) ~= "table"
-              or type(model.actions) ~= "table")) then
-          return failed("unsupported_presentation")
+        local valid, code = PresentationModel.validate(model)
+        if not valid then
+          return failed(code or "unsupported_presentation")
         end
       end
       if prepared.suppress ~= true and not legacySurface and not legacyScreen then
@@ -330,7 +333,9 @@ function Runtime.new(core)
           return failed((fontCode or "font_unavailable") .. ":"
             .. tostring(fontMessage or ""))
         end
-        if model.kind == "menu" and solved.value.widthMode == "content" then
+        if (model.kind == "menu" or model.kind == "device"
+            or model.kind == "map")
+            and solved.value.widthMode == "content" then
           local logicalWidth = self:lockedMenuWidth(state, solved.value, model,
             font, solveRequest.density, vp, safe)
           if logicalWidth then
@@ -388,7 +393,7 @@ function Runtime.new(core)
         or "render_incomplete")
     end
     self.candidate = { game=game, viewport=vp, entries=entries,
-      hidden=hidden, canvas=canvas }
+      hidden=hidden, canvas=canvas, frameSerial=self.frameSerial }
     self.lastReason = "ready"
     return self.candidate
   end
@@ -419,9 +424,27 @@ function Runtime.new(core)
       end, 90000)
     subscriptions[#subscriptions + 1] = self.mod.hooks:wrap("screen.render_visible",
       function(nextFn, state)
+        -- v0.1.86 has the visibility and HUD seams but predates the dedicated
+        -- render.ui.prepare seam. Prepare once, before the first native state
+        -- is queried, so suppression is still atomic and the native state
+        -- never flashes underneath a V3 frame. Newer hosts prepare through
+        -- render.ui.prepare first, making this path a no-op for that frame.
+        local game = type(state) == "table" and rawget(state, "game")
+        game = game or (self.mod and self.mod.game)
+        local candidate = self.candidate
+        if game and (not candidate or candidate.game ~= game
+            or candidate.frameSerial ~= self.frameSerial) then
+          local graphics = love and love.graphics
+          if graphics and type(graphics.getDimensions) == "function" then
+            local width, height = graphics.getDimensions()
+            pcall(self.prepare, self, game,
+              { x=0, y=0, w=width, h=height,
+                width=width, height=height })
+          end
+        end
         local visible = nextFn(state)
         if visible == false then return false end
-        local candidate = self.candidate
+        candidate = self.candidate
         if candidate and candidate.hidden[state] then return false end
         return visible
       end, 90000)
@@ -440,6 +463,10 @@ function Runtime.new(core)
           if pushed and graphics.pop then pcall(graphics.pop) end
           if not ok then self:clear("compose_failed") end
         end
+        -- Keep the completed candidate available to input hooks until the
+        -- next frame begins, but force the fallback prepare above to rebuild
+        -- it once the host advances to that next frame.
+        self.frameSerial = self.frameSerial + 1
       end, 90000)
     subscriptions[#subscriptions + 1] = self.mod.hooks:wrap("input.pointer",
       function(nextFn, game, event)

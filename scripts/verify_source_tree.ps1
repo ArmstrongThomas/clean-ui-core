@@ -120,7 +120,8 @@ $expectedExamples = @(
   "start-action-pinning",
   "details-fields-footer-lists",
   "modal-overlay",
-  "animated-shader-grid"
+  "animated-shader-grid",
+  "ui-editor-fixture"
 )
 $examplesRoot = Join-Path $root "examples"
 [void] (Require-File "examples\README.md")
