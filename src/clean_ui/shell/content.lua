@@ -113,7 +113,11 @@ local function optionRows(shell, compatibility)
   for _, source in ipairs(shell.core.settingsSchema or {}) do
     local native = tostring(source.key):match("^native_") ~= nil
     if native == compatibility then
-      local value = shell.mod.options:get(source.key)
+      -- Read through the shared V3 settings adapter. The released host may
+      -- expose options:define/get without options:set, so bypassing Core's
+      -- session-local fallback makes a setting appear stuck at its persisted
+      -- value after reset or an in-session change.
+      local value = shell:setting(nil, source.key)
       rows[#rows + 1] = {
         id = source.key, label = source.label or source.key,
         kind = source.type, value = value, choices = source.choices,

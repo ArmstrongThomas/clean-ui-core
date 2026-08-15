@@ -104,8 +104,8 @@ Use one minimal pixel-modern system with restrained generation accents:
 | M | 320–600x420 | Main, Options, Save, PC roots; plain menus are content-driven |
 | L | 760x540 | Party, Summary, Pack, Pokedex, services |
 | XL | 960x640 | Box storage, Naming, Mail Compose |
-| Battle | 640x360 landscape / 360x640 portrait | Gen2 stable battle frames |
-| Battle Wide | 640x360 | Gen1 2D battle only |
+| Battle | Deferred | Native host battle boundary pending a new design |
+| Battle Wide | Deferred | Future Gen1 2D battle design only |
 
 Rules:
 
@@ -120,14 +120,14 @@ Rules:
 - Overflow order is: reflow columns, wrap, scroll, tighten optional spacing/chrome, then lower the font step.
 - Never silently overlap or clip required content.
 - AUTO scaling grows on 4K/5K displays, but final bounds must remain inside the safe viewport.
-- Gen2 battle uses the responsive `Battle` envelope. Stable menu, move,
-  message, status, and source-owned battle animation frames may be replaced.
-  The pre-battle transition uses the V3 transparent `animation.overlay` model,
-  and proven Party/Pack child stacks may replace their native child state while
-  preserving the source-owned battle state underneath.
-- The Gen1 battle presenter uses only the `640x360` wide design. If a narrow or
-  portrait viewport cannot fit it legibly at Plain Pixel 1x, leave Gen1 battle
-  native instead of inventing a stacked battle layout.
+- Gen2 battle remains entirely native/deferred. No active Core battle renderer,
+  ownership latch, or animation-frame reconstruction is a product contract.
+  Future work may preserve the design goals of detached composition and
+  explicit suppression, but must begin from new host seams and a new
+  architecture.
+- Gen1 battle is a future design milestone. Until it is separately designed
+  and proven, leave the complete battle stack native rather than inventing a
+  replacement layout.
 - Enemy status stays above/within the enemy side of the renderer, never directly stacked above the player status panel.
 
 ### Font and settings
@@ -346,8 +346,9 @@ Remain native through Gen2 1.0:
 - Hall of Fame induction
 - World-owned picture windows without an independent suppression seam
 
-Gen2 battle's stable decision/message frames are part of the 1.0 scope;
-animation-heavy and child-owned battle states remain explicit native seams.
+Gen2 battle is deferred from the active Core roadmap after the failed live
+architecture attempt. All battle phases and child stacks remain explicit
+native boundaries until a replacement design is approved and verified.
 
 ### Gen1 Clean UI second
 

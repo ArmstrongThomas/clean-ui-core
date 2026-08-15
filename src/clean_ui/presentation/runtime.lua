@@ -17,6 +17,25 @@ local AnimationRender = requireCore("presentation.animation_render")
 
 local Runtime = {}
 
+-- Keep the V3 pointer pipeline available for future work, but do not expose
+-- or activate it until the screen families have reliable pointer behavior.
+local POINTER_TOUCH_ENABLED = false
+
+-- The v0.1.86 visibility seam passes a live screen state while newer hosts
+-- pass the game through the dedicated prepare seam. Resolve both forms so a
+-- recreated child state cannot lose the prepared clean candidate.
+local function gameFromState(state)
+  if type(state) ~= "table" then return nil end
+  local ok, game = pcall(function() return state.game end)
+  return ok and type(game) == "table" and game or nil
+end
+
+local function gameFromMod(mod)
+  if type(mod) ~= "table" then return nil end
+  local ok, game = pcall(function() return mod.game end)
+  return ok and type(game) == "table" and game or nil
+end
+
 local function inside(outer, rect)
   return type(rect) == "table"
     and rect.x >= outer.x and rect.y >= outer.y
@@ -82,15 +101,33 @@ function Runtime.new(core)
   local self = { core=core, mod=core.mod, provider=core.provider,
     candidate=nil, canvas=nil, canvasW=nil, canvasH=nil,
     menuWidths=setmetatable({}, { __mode = "k" }), frameId=0,
-    frameSerial=0 }
+    frameSerial=0, lastGame=nil }
   self.fonts = FontCatalog.new(love and love.graphics, {
     plainPixel=core.config.plainPixelPath
       or "assets/fonts/plainpixel/PlainPixel-Regular.ttf",
   })
   local sourceImage = core.mod and core.mod.ui and core.mod.ui.sourceImage
+  local function generatedPng(path)
+    return type(path) == "string"
+      and path:sub(1, 17) == "assets/generated/"
+      and not path:find("..", 1, true)
+      and not path:find("\\", 1, true)
+      and not path:find(":", 1, true)
+      and path:lower():match("%.png$") ~= nil
+  end
   if type(sourceImage) == "function" then
     MenuRender.setSourceImageLoader(function(path)
       return sourceImage(path)
+    end)
+  elseif love and love.graphics
+      and type(love.graphics.newImage) == "function" then
+    -- v0.1.86 exposes the sandboxed graphics facade but predates
+    -- mod.ui.sourceImage. Keep the fallback restricted to the generated PNG
+    -- namespace so sprite-bearing V3 screens remain drop-in without creating
+    -- a general filesystem loader.
+    MenuRender.setSourceImageLoader(function(path)
+      if not generatedPng(path) then return nil, "invalid_source_image" end
+      return love.graphics.newImage(path)
     end)
   end
 
@@ -417,6 +454,7 @@ function Runtime.new(core)
     end
     subscriptions[#subscriptions + 1] = self.mod.hooks:wrap("render.ui.prepare",
       function(nextFn, game, viewport)
+        if type(game) == "table" then self.lastGame = game end
         self:clear("prepare_begin")
         local downstream = nextFn(game, viewport)
         self:prepare(game, viewport)
@@ -429,8 +467,8 @@ function Runtime.new(core)
         -- is queried, so suppression is still atomic and the native state
         -- never flashes underneath a V3 frame. Newer hosts prepare through
         -- render.ui.prepare first, making this path a no-op for that frame.
-        local game = type(state) == "table" and rawget(state, "game")
-        game = game or (self.mod and self.mod.game)
+        local game = gameFromState(state) or self.lastGame
+          or gameFromMod(self.mod)
         local candidate = self.candidate
         if game and (not candidate or candidate.game ~= game
             or candidate.frameSerial ~= self.frameSerial) then
@@ -450,6 +488,7 @@ function Runtime.new(core)
       end, 90000)
     subscriptions[#subscriptions + 1] = self.mod.hooks:wrap("render.hud",
       function(nextFn, game, viewport)
+        if type(game) == "table" then self.lastGame = game end
         nextFn(game, viewport)
         local candidate = self.candidate
         if candidate and candidate.game == game and candidate.canvas then
@@ -472,7 +511,7 @@ function Runtime.new(core)
       function(nextFn, game, event)
         local candidate = self.candidate
         if candidate and candidate.game == game
-            and self:option("pointer_touch", true) ~= false
+            and POINTER_TOUCH_ENABLED
             and type(self.provider.pointer) == "function" then
           for index = #candidate.entries, 1, -1 do
             local entry = candidate.entries[index]

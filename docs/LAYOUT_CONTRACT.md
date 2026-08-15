@@ -14,7 +14,7 @@ selection.
 | `M` | 320–600×420 | Main, Options, Save, PC roots; plain menus are content-driven |
 | `L` | 760×540 | Party, Summary, Pack, Pokédex, services |
 | `XL` | 960×640 | Box storage, Naming, Mail Compose |
-| `BATTLE_WIDE` | 640×360 | Gen1 2D battle only |
+| `BATTLE_WIDE` | 640×360 | Legacy/future Gen1 battle surface; not active in Gen2 |
 
 The default frame is a two-logical-pixel cut-corner frame. Panel fill starts
 inside its calculated inset; no background spill may touch the frame artwork's
@@ -168,10 +168,12 @@ Each actionable node has:
 Pointer, touch, controller, and keyboard navigation all refer to component IDs
 from the same layout result.
 
-## Gen1 battle rule
+## Battle boundary
 
-The Clean UI Gen1 battle presenter supports only `BATTLE_WIDE` at 640×360
-logical pixels. If it cannot fit legibly at Plain Pixel 1× in the safe viewport,
+Battle presentation is currently deferred in the active Core roadmap. The
+committed `BATTLE_WIDE` geometry remains a legacy/future contract for later
+design work, but no product may claim live battle ownership from it. If a
+battle surface is not explicitly proven by a future product/provider contract,
 the entire battle stack remains native.
 
 Enemy status belongs above or within the enemy side of the renderer. It is

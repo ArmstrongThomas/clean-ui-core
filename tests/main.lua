@@ -435,6 +435,29 @@ function love.load()
   T.equal(measuredMenu.hitRegions[1].sourceIndex, 4,
     "menu pointer geometry preserves the native source row index")
 
+  local namingLayout = MenuLayout.measure({
+    viewport={x=0,y=0,w=640,h=480}, outer={x=0,y=0,w=640,h=480}, scale=1,
+  }, {
+    kind="menu", opaque=true, title="TOTODILE'S NICKNAME",
+    description="A TYPE   SELECT CASE   B DELETE   START FOCUS END",
+    rows={}, selected=1, scroll=0,
+    naming={
+      entry={text="TOT", sourceLength=3, maxLength=10},
+      cursor={row=0, col=0, bottomRow=false},
+      keyboard={columns=9, rows={
+        {"A","B","C","D","E","F","G","H","I"},
+        {"J","K","L","M","N","O","P","Q","R"},
+        {"S","T","U","V","W","X","Y","Z"," "},
+        {"1","2","3","4","5","6","7","8","9"},
+      }, bottom={{label="lower"},{label="DEL"},{label="END"}}},
+    },
+  }, { getHeight=function() return 15 end }, "comfortable")
+  T.check(namingLayout.naming ~= nil
+      and namingLayout.detailRegion == nil
+      and #namingLayout.naming.cells == 39
+      and namingLayout.naming.cells[#namingLayout.naming.cells].kind == "bottom",
+    "naming layout reserves the keyboard and source-owned actions")
+
   local navModel = { preset="NAV", title="START KRIS", rows={
     { label="POKEMON", right="" }, { label="PACK", right="" },
   } }

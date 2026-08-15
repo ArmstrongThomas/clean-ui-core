@@ -8,13 +8,13 @@
 - Added Core editor-fixture coverage for both direct kinds. The remaining V3
   gap is live source-owned animation timing, source identity, and complete
   child-stack ownership; products continue to fail open at those boundaries.
-- Hardened the V3 battle presenter so message, command-menu, and four-move
-  phases reserve the same battlefield envelope instead of shrinking the HUD;
-  player status cards now place HP above EXP consistently.
-- Fixed live battle OAM animation crop resolution to preserve both values
-  returned by the animation-sheet lookup. Optional effect-sheet failures now
-  skip only that effect tile, keeping the Clean UI frame active instead of
-  exposing the native battle renderer.
+- Deferred the experimental Core battle scene-frame, ownership-latch, and
+  responsive battle-envelope work after official-launcher failures beyond the
+  intro. Gen2 battle remains native/deferred while a new architecture is
+  designed; see `docs/archive/battle-ui-deferred-2026-08-15/`.
+- Kept the V3 naming presentation data-only: Core may render entry slots and a
+  keyboard surface while the source retains cursor, text, and completion
+  ownership.
 - Added the V3 `all_generations = true` contract flag. A shared contract can
   now register against every Clean UI generation without duplicating its
   `games` list; manifests still declare launcher eligibility, and the editor

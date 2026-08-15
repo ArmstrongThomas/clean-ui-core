@@ -67,7 +67,7 @@ Settings.schema = {
     choices = { { "AUTO", "auto" }, { "COMFORTABLE", "comfortable" },
       { "COMPACT", "compact" } } },
   { key = "pointer_touch", label = "POINTER & TOUCH", type = "toggle",
-    default = true },
+    default = false },
 }
 
 function Settings.define(mod, schema)

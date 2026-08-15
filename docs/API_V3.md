@@ -150,6 +150,31 @@ may include a positive `width`/`height`, a source sheet, dense tile arrays, a
 cursor sheet, and palette metadata; missing art remains a valid fail-open
 state rather than a reason to invent a placeholder graphic.
 
+### Naming keyboard presentation
+
+A menu presentation may carry an optional `naming` descriptor when the source
+screen owns a naming cursor but the product supplies the visual keyboard. The
+descriptor is data-only and keeps the source's zero-based cursor and action
+semantics intact:
+
+```lua
+{
+  entry = { text = "TOT", sourceLength = 3, maxLength = 10 },
+  case = "upper",
+  keyboard = {
+    columns = 9,
+    rows = { { "A", "B", "C" } },
+    bottom = { { label = "lower" }, { label = "DEL" }, { label = "END" } },
+  },
+  cursor = { row = 0, col = 0, bottomRow = false },
+}
+```
+
+Core renders the entry slots and card grid, while the source remains
+authoritative for movement, character insertion, case changes, deletion, and
+completion. Products must leave unsupported naming contexts native and must
+not invent submit or delete callbacks in the presentation model.
+
 ### V3 gap register
 
 The device/map gap is closed for the declarative visual model: Core validates
@@ -171,6 +196,11 @@ in Core with validation, responsive layout/rendering, Gallery fixtures, and
 editor parity before a product claims timing-heavy animation ownership as
 fully portable V3. Until then, products should keep using canonical V3 models
 and explicitly document source-owned timing and child-stack boundaries.
+
+The experimental live battle scene-frame and ownership-latch architecture is
+deferred and archived. Core does not advertise live battle reconstruction;
+products must keep battle native/deferred until a replacement design proves
+source identity, timing, suppression, and complete visible-stack ownership.
 
 ### Panel screen descriptors
 

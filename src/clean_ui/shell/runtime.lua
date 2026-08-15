@@ -11,6 +11,11 @@ local Render = requireCore("shell.render")
 
 local Shell = {}
 
+-- Pointer/touch hit testing remains implemented for a future input pass, but
+-- the current Clean UI deliberately leaves it disabled. The released host
+-- exposes the hook, while several screens still have incomplete behavior.
+local POINTER_TOUCH_ENABLED = false
+
 local function slug(value)
   local text = tostring(value):lower():gsub("[^a-z0-9]+", "_")
   text = text:gsub("^_+", ""):gsub("_+$", "")
@@ -85,7 +90,7 @@ function Shell.new(core)
     subscriptions[#subscriptions + 1] = self.mod.hooks:wrap("input.pointer",
       function(nextFn, game, event)
         local screen = self:active(game)
-        if screen and self.core:setting("pointer_touch", true) ~= false
+        if screen and POINTER_TOUCH_ENABLED
             and self:pointer(screen, event) then return true end
         return nextFn(game, event)
       end, 100000)

@@ -1,12 +1,26 @@
 # Clean UI Session Handoff
 
-Last updated: 2026-08-14
+Last updated: 2026-08-15
 
 This is the continuation document for the Clean UI ground-up rebuild. Read
 this file and [the authoritative rebuild plan](CLEAN_UI_REWORK_PLAN.md) in full
 before changing code. The plan owns product scope and architecture; this file
 records the current workspace state, what is actually integrated, and the next
 safe work sequence.
+
+## Latest session update (2026-08-15, battle architecture deferred)
+
+- The experimental Core battle scene-frame, renderer-expansion, ownership-latch,
+  and responsive battle-envelope work has been archived after the Gen2 live
+  battle UI failed to progress reliably beyond intro and could expose native
+  UI during refresh/redraw boundaries.
+- The active Core tree no longer treats that architecture as a supported
+  battle contract. Gen2 battle remains native/deferred, and a future rewrite
+  must begin from newly audited host V3 seams rather than restoring the
+  archived renderer or latch incrementally.
+- The retained Core changes in this slice are non-battle: shared naming
+  presentation data, released-host asset/settings compatibility, and their
+  deterministic coverage. No launcher or host repository was changed.
 
 ## Latest session update (2026-08-14, cross-generation V3 contracts)
 
