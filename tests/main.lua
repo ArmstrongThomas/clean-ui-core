@@ -1573,6 +1573,44 @@ function love.load()
       schema="clean_ui.v3.presentation.v1", apiVersion=3, preset="L",
       map={region="KANTO", rows={{x=1, y=1, nest="yes"}}} }) == nil,
     "V3 rejects malformed map nest marker flags")
+  local documentModel = Content.v3Model({
+    id="reference_document", kind="document",
+    schema="clean_ui.v3.presentation.v1", apiVersion=3, preset="L",
+    document={
+      regions={
+        { id="identity", role="header", priority=100, components={
+          { id="title", type="heading", text="REFERENCE" },
+          { id="types", type="badges", values={"NORMAL", "FLYING"} },
+        } },
+        { id="facts", role="metadata", collapse="stack", components={
+          { type="metadata", items={
+            { label="STATUS", value="OWNED" },
+          } },
+        } },
+      },
+      controls={
+        { input="a", label="SELECT", action="reference.select" },
+        { input="b", label="BACK" },
+      },
+      focus={ initial="title", order={"title"} },
+    },
+  })
+  T.check(documentModel ~= nil and documentModel.kind == "document"
+      and documentModel.document.regions[1].components[2].type == "badges",
+    "V3 accepts data-only document reference pages")
+  T.check(Content.v3Model({
+      id="bad_document_component", kind="document",
+      schema="clean_ui.v3.presentation.v1", apiVersion=3, preset="L",
+      document={regions={{id="body", role="main", components={
+        { type="unknown", text="INVALID" },
+      }}}},
+    }) == nil
+      and Content.v3Model({
+        id="sparse_document_regions", kind="document",
+        schema="clean_ui.v3.presentation.v1", apiVersion=3, preset="L",
+        document={regions={ [2]={id="body", role="main", components={}} }},
+      }) == nil,
+    "V3 rejects unknown document components and sparse regions")
   T.check(Content.v3Model({ id="bad_overlay", kind="animation",
       schema="clean_ui.v3.presentation.v1", apiVersion=3, preset="ANIMATION",
       animation={id="battle.transition", overlay=true,
