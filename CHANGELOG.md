@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Added the first V3 document-page contract and shared renderer/layout slice for
+  page-specific reference screens such as Pokédex info, habitat, evolution,
+  moves, and machine compatibility. Document pages are data-only; products
+  still own source navigation and input dispatch.
+- Added document-page Gallery expansion so empty, minimal, dense, and overflow
+  previews exercise the same structured regions used at runtime.
 - Made OpenTTD Mono the default bundled font family. The public choices are
   OpenTTD Mono, Plain Pixel, and System; public text steps are AUTO/1x/2x/3x.
   Explicit internal 4x remains available for authored display styles only.

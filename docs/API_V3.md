@@ -58,7 +58,7 @@ Each product exports:
 ```lua
 mod.exports.cleanUiHost = {
   apiVersion = 3,
-  coreVersion = "0.1.0-alpha.12",
+  coreVersion = "0.1.0-alpha.13",
   productId = "gen2_clean_ui", -- or gen1_clean_ui
   game = "gen2",               -- or gen1
   capabilities = {

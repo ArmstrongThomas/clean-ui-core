@@ -272,6 +272,28 @@ function Runtime.new(core)
         model.lines = expanded
       end
     end
+    if model.kind == "document" and type(model.document) == "table" then
+      local regions = model.document.regions or {}
+      for _, region in ipairs(regions) do
+        local components = region.components or {}
+        if level == "EMPTY" then
+          region.components = {}
+        elseif level == "MINIMAL" and #components > 1 then
+          region.components = { components[1] }
+        elseif level == "DENSE" or level == "OVERFLOW" then
+          local target = level == "DENSE" and math.max(#components, 4)
+            or math.max(#components, 8)
+          local expanded = {}
+          for index = 1, target do
+            local sourceComponent = #components > 0
+              and components[((index - 1) % #components) + 1]
+              or { type = "label", text = "FIXTURE COMPONENT" }
+            expanded[index] = Data.snapshot(sourceComponent)
+          end
+          region.components = expanded
+        end
+      end
+    end
     return model
   end
 
