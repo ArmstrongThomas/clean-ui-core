@@ -2,8 +2,6 @@
 
 ## Unreleased
 
-- Added bounded document image sizing and optional three-column list rows with
-  dotted leaders, preserving the generic two-column list fallback.
 - Added a reusable document scrollbar component with proportional thumb,
   directional arrows, bounded region clipping, and explicit multi-column
   document composition for list/rail/detail reference pages.
