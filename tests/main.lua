@@ -159,6 +159,12 @@ function love.load()
     and type(hookWrappers["input.wheel"]) == "function",
     "shell installs render, pointer, and wheel seams")
 
+  -- Keep the bootstrap-facing checks in their own lexical scope. Lua limits
+  -- each function to 200 simultaneously live local registers; this file is
+  -- intentionally a broad integration suite, so one unbroken love.load
+  -- scope eventually exceeded that limit as the suite grew.
+  do
+
   local directContract = {
     id = "direct_contract", version = "1.0.0", games = { "gen2" },
     screens = {{
@@ -308,7 +314,8 @@ function love.load()
   local settingCommit = runtime.dropdown:dispatch({ type="activate" })
   T.equal(select(1, runtime.shell:commitDropdown(settingCommit)), true,
     "dropdown commits through the public options writer")
-  T.equal(modOptions.theme, "dark", "dropdown writes the selected value")
+  T.equal(modOptions.theme, rows[1].choices[2][2],
+    "dropdown writes the selected value")
   fakeStack:pop()
 
   local galleryPayload = { game="gen2", fixtures={
@@ -376,6 +383,8 @@ function love.load()
     "shell draw failure pops its own blank screen and restores the source UI")
 
   local requireCore = runtime.config and nil
+  end
+
   -- Bootstrap intentionally hides its loader. Public behavior is exercised
   -- through runtime services, while pure modules have a separate loader below.
   local manifestSource = assert(filesystemRead("src/clean_ui/module_manifest.lua"))
@@ -390,6 +399,10 @@ function love.load()
     cache[name] = module
     return module
   end
+
+  local MenuLayout
+
+  do
 
   local Presets = loadModule("design.presets")
   T.equal(Presets.NAV.w, 440, "NAV width is stable")
@@ -472,8 +485,9 @@ function love.load()
     and large.value.outer.x + large.value.outer.w <= 5120
     and large.value.outer.y + large.value.outer.h <= 2784,
     "5K envelope stays inside monitor")
-  T.check(FontPolicy.validPlainPixelSize(large.value.font.physicalPx),
-    "solver keeps Plain Pixel whole-step")
+  T.check(FontPolicy.validSize(large.value.font.family,
+      large.value.font.physicalPx),
+    "solver keeps the selected font family on a whole step")
   local internalFourX = Solver.solve({ preset = "S",
     viewport = { x=0, y=0, w=1280, h=720 },
     safeArea = { x=0, y=0, w=1280, h=720 }, uiSize = "auto",
@@ -554,7 +568,7 @@ function love.load()
       <= measuredPortrait.inner.y + measuredPortrait.inner.h,
     "portrait battle panel stays inside the safe envelope")
 
-  local MenuLayout = loadModule("presentation.menu_layout")
+  MenuLayout = loadModule("presentation.menu_layout")
   local measuredMenu = MenuLayout.measure({
     outer={x=0,y=0,w=400,h=300}, scale=1,
   }, {
@@ -798,6 +812,10 @@ function love.load()
   T.check(lastFooterItem.y + lastFooterItem.h
       <= richMenu.inner.y + richMenu.inner.h,
     "rich detail footer remains inside the fixed envelope")
+
+  end
+
+  do
 
   local MenuRender = loadModule("presentation.menu_render")
   local imageState = { filter = {}, draws = {}, quads = {}, shader = "base" }
@@ -1279,6 +1297,10 @@ function love.load()
   T.check(dropdown.state.scrollOffset > 0,
     "keyboard navigation reveals an active option below the viewport")
 
+  end
+
+  do
+
   local Registry = loadModule("v3.registry")
   local registry = Registry.new("gen2")
   local validContract = { id="sample",version="1.0.0",games={"gen2"},
@@ -1707,6 +1729,10 @@ function love.load()
       and Content.isV3Screen(fixtureDialogue),
     "editor fixture opens direct V3 dialogue, choice, battle, device, map, and animation results")
 
+  end
+
+  do
+
   local Catalog = loadModule("integration.catalog")
   local Pins = loadModule("integration.pins")
   local StartMenu = loadModule("integration.start_menu")
@@ -1858,6 +1884,8 @@ function love.load()
   mod.options.set, mod.game, mod.storage =
     previousSet, previousGame, previousStorage
   modOptions.theme = previousTheme
+
+  end
 
   local Transaction = loadModule("surfaces.transaction")
   local state = { color={1,1,1,1}, shader="base", canvas="screen", depth=0 }
