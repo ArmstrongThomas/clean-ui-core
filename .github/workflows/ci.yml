@@ -22,6 +22,8 @@ jobs:
           sudo apt-get install --no-install-recommends -y love xvfb
 
       - name: Run core tests
+        env:
+          SDL_AUDIODRIVER: dummy
         run: |
           cp -R src tests/src
           mkdir -p tests/examples
