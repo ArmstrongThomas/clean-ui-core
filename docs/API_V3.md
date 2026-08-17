@@ -176,6 +176,21 @@ items, and `total` is the number of items in the source collection. The
 component owns only visual affordance; products remain responsible for
 selection, scrolling, and input dispatch.
 
+Document pages may also provide a separate header slot without consuming a
+body region. The page title remains the large document heading, while
+`header.right` or `header.left` accepts a `heading` or `label` component for
+independently sized supporting text:
+
+```lua
+header = {
+  right = { type = "label", text = "MODE: NEW  ·  001–251" },
+}
+```
+
+The right slot is aligned to the inside edge of the document header. Header
+slots are presentation-only; products still own source navigation and input
+dispatch.
+
 ### Naming keyboard presentation
 
 A menu presentation may carry an optional `naming` descriptor when the source

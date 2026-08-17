@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Added independent left/right document header slots so page titles and
+  supporting metadata can use separate containers and text sizes.
 - Added a reusable document scrollbar component with proportional thumb,
   directional arrows, bounded region clipping, and explicit multi-column
   document composition for list/rail/detail reference pages.

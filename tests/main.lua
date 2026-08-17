@@ -1591,6 +1591,9 @@ function love.load()
           { type="scrollbar", index=2, visible=8, total=24 },
         } },
       },
+      header={
+        right={ type="label", text="MODE: NEW  ·  001–251" },
+      },
       contentLayout="columns",
       controls={
         { input="a", label="SELECT", action="reference.select" },
@@ -1601,7 +1604,8 @@ function love.load()
   })
   T.check(documentModel ~= nil and documentModel.kind == "document"
       and documentModel.document.regions[1].components[2].type == "badges"
-      and documentModel.document.regions[3].components[1].type == "scrollbar",
+      and documentModel.document.regions[3].components[1].type == "scrollbar"
+      and documentModel.document.header.right.type == "label",
     "V3 accepts data-only document reference pages and scroll rails")
   T.check(Content.v3Model({
       id="bad_document_component", kind="document",
