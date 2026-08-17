@@ -132,11 +132,12 @@ local function card(G, rect, mon, font, theme, scale, side)
   Color.set(G, theme.colors.raised)
   G.rectangle("fill", rect.x, rect.y, rect.w, rect.h)
   local gap = math.max(6, math.floor(8 * scale))
-  local line = font:getHeight()
+  local line = math.max(1, math.floor((tonumber(font:getHeight()) or 1) + 0.5))
   local level = "Lv " .. tostring(mon.level or 1)
   local rightLabel = level
   local rightWidth = font:getWidth(rightLabel)
-  local genderSize = math.min(16 * scale, math.max(line, rect.h - gap * 2))
+  local genderSize = math.min(line,
+    math.max(1, math.floor(rect.h - gap * 2 + 0.5)))
   local genderWidth = mon.genderIcon and (genderSize + gap) or 0
   local nameWidth = math.max(1, rect.w - gap * 2 - rightWidth - genderWidth)
   local name = mon.name or mon.species or "?"

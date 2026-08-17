@@ -60,6 +60,13 @@ regions are all produced by one measurement result.
 `text` is required. Set `layout.truncatable = true` only for genuinely optional
 display text; otherwise the solver wraps or scrolls it.
 
+The shared menu renderer also exposes reusable semantic text roles: `body`,
+`label`, `value`, `caption`, `strong`, `subheading`, `heading`, `title`,
+`display`, `accent`, and `muted`. `heading`/`title` request a larger
+family-relative whole-step font for that individual run; `display` may use the
+reserved internal 4x step. Each run falls back independently when its text
+does not fit, so a large heading never shrinks unrelated text on the screen.
+
 ## Button
 
 ```lua

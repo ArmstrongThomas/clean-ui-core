@@ -80,11 +80,14 @@ mod.storage:write(game, "settings", {
 ```
 
 Storage values are data, not executable Lua. Do not serialize functions, live
-screen objects, canvases, shaders, or callbacks. Clean UI settings use the
-public `mod.options:set` API; per-save Start-menu pins use `mod.save` according
-to the product contract because they intentionally travel with a normal game
-save. Neither mechanism is implemented with private files or raw filesystem
-access.
+screen objects, canvases, shaders, or callbacks. Clean UI settings prefer the
+public `mod.options:set` API. On the released host floor where that writer is
+absent, the shared core uses the same public `mod.storage` facade as a
+compatibility fallback, scoped to the active playthrough (or the selected
+playthrough while its title session is open). Per-save Start-menu pins use
+`mod.save` according to the product contract because they intentionally travel
+with a normal game save. Neither mechanism is implemented with private files or
+raw filesystem access.
 
 ## Private globals and cross-mod communication
 
