@@ -14,6 +14,8 @@ local BattleLayout = requireCore("presentation.battle_layout")
 local BattleRender = requireCore("presentation.battle_render")
 local AnimationLayout = requireCore("presentation.animation_layout")
 local AnimationRender = requireCore("presentation.animation_render")
+local DocumentLayout = requireCore("presentation.document_layout")
+local DocumentRender = requireCore("presentation.document_render")
 
 local Runtime = {}
 
@@ -110,7 +112,9 @@ function Runtime.new(core)
   local function fitsCandidate(envelope, model, policy, density, priorEntries)
     local _, font = self.fonts:resolve(policy)
     if not font then return false end
-    if model.kind == "menu" or model.kind == "device"
+    if model.kind == "document" then
+      return DocumentLayout.fits(envelope, model, font, density)
+    elseif model.kind == "menu" or model.kind == "device"
         or model.kind == "map" then
       return MenuLayout.fits(envelope, model, font, density)
     elseif model.kind == "dialogue" or model.kind == "choice" then
@@ -287,7 +291,9 @@ function Runtime.new(core)
 
   function self:measureModel(base, model, font, density, priorEntries)
     local layout
-    if model.kind == "menu" or model.kind == "device"
+    if model.kind == "document" then
+      layout = DocumentLayout.measure(base, model, font, density)
+    elseif model.kind == "menu" or model.kind == "device"
         or model.kind == "map" then
       layout = MenuLayout.measure(base, model, font, density)
     elseif model.kind == "dialogue" or model.kind == "choice" then
@@ -303,7 +309,9 @@ function Runtime.new(core)
   end
 
   function self:drawModel(model, layout, font, theme)
-    if model.kind == "menu" or model.kind == "device"
+    if model.kind == "document" then
+      return DocumentRender.draw(love.graphics, model, layout, font, theme)
+    elseif model.kind == "menu" or model.kind == "device"
         or model.kind == "map" then
       return MenuRender.draw(love.graphics, model, layout, font, theme)
     elseif model.kind == "dialogue" or model.kind == "choice" then
@@ -324,7 +332,8 @@ function Runtime.new(core)
     if type(request) ~= "table" then
       return Solver.solve(request)
     end
-    if type(model) == "table" and (model.kind == "menu"
+    if type(model) == "table" and (model.kind == "document"
+        or model.kind == "menu"
         or model.kind == "device" or model.kind == "map"
         or model.kind == "dialogue" or model.kind == "choice"
         or model.kind == "animation" or model.kind == "battle") then
@@ -430,7 +439,7 @@ function Runtime.new(core)
           textSize=self:option("text_size", "auto"),
           fontFamily=self:option("font", "openttd_mono"),
           density=self:option("density", "auto") }
-        if model.kind == "menu" or model.kind == "device"
+        if model.kind == "document" or model.kind == "menu"
             or model.kind == "map" or model.kind == "dialogue"
             or model.kind == "choice" or model.kind == "animation"
             or model.kind == "battle" then

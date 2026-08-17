@@ -75,6 +75,9 @@ mod.exports.cleanUiHost = {
     gallery = "0.1.0",
     contract_catalog = "0.1.0",
     presentation_models = "0.1.0",
+    document_pages = "0.1.0",
+    semantic_focus = "0.1.0",
+    structured_controls = "0.1.0",
     start_menu_pinning = "0.1.0",
   },
 
@@ -116,7 +119,8 @@ source-owned dispatcher.
 
 The shell also accepts a direct V3 presentation model as a screen descriptor
 for editor previews and source-owned action results. The supported model kinds
-are `menu`, `dialogue`, `choice`, `battle`, `animation`, `device`, and `map`;
+are `menu`, `dialogue`, `choice`, `battle`, `animation`, `device`, `map`, and
+`document`;
 each uses the same
 data-only model vocabulary as the product presentation runtime. For example:
 
