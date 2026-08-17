@@ -2,6 +2,53 @@
 
 ## Unreleased
 
+- Made OpenTTD Mono the default bundled font family. The public choices are
+  OpenTTD Mono, Plain Pixel, and System; public text steps are AUTO/1x/2x/3x.
+  Explicit internal 4x remains available for authored display styles only.
+- Added the shared largest-fitting font-step probe: required text is measured
+  before rendering and falls back one authored step at a time instead of being
+  truncated with an ellipsis.
+- Added reusable semantic text roles for body, label, value, caption, strong,
+  subheading, heading, title, display, accent, and muted rendering. Heading,
+  title, and display runs can request larger family-relative whole-step faces
+  (including the reserved internal 4x display step); each run still falls
+  back independently when it cannot fit, without changing neighboring text.
+- Tightened the detached party/summary compositions with six fixed party slots,
+  animated sprite-sheet crop selection, structured summary field cards, and
+  stronger section/tab hierarchy.
+- Added shared detached party-list and summary-page layout/render primitives
+  for the Gen2-first Party/Summary redesign: stable row geometry, top-right
+  tab geometry, beveled semantic badges, and independent move information
+  regions. These are generic data-first primitives; source navigation remains
+  outside Core.
+- Added regression coverage for six-row party envelopes, tab order, move-slot
+  containment, and source-index-preserving hit geometry.
+- Centralized Core-owned image presentation: loaded images use nearest-neighbor
+  filtering, sprite/tile/crop destinations are integer-aligned, and raster
+  scaling uses whole-pixel magnification or exact reciprocal reduction where
+  the source crop permits it. Gender icons size from the selected font's pixel
+  height without forcing a fractional source scale. Native tilemaps also
+  choose one shared pixel scale for the full tile grid so responsive cells do
+  not accumulate rounded seams.
+- Made Clean UI settings durable on released hosts that expose
+  `mod.options:define/get` but not `mod.options:set` by persisting the
+  compatibility fallback through the public `mod.storage` facade. Hosts with
+  the official writer continue to use it directly; settings remain session-only
+  only before a playthrough storage context exists.
+- Routed the shared shell's normal, V3, and Gallery-preview theme selection
+  through the same Core settings adapter. The Mod Menus page no longer falls
+  back to the native options reader's default Clean theme on released hosts.
+- Added Red, Blue, Yellow, Gold, Silver, and Crystal built-in themes with
+  matching settings choices and validated readable contrast palettes.
+- Added a shared Dark Mode toggle that resolves each game palette to its dark
+  variant, adds Light High Contrast, and keeps Clean/Dark as opposites.
+- Restored presentation invalidation listeners for `screen.pushed` and
+  `screen.popped`. Deferring the experimental battle architecture must not
+  remove this shared lifecycle contract; isolated Gen2 product smoke now
+  remains compatible with the current Core snapshot.
+- Extended the V3 `map` marker descriptor with an optional boolean `nest` flag
+  and a distinct responsive diamond marker. This is used by Gen1 TownMap Area
+  mode; it carries presentation data only and does not change source ownership.
 - Added first-class V3 `device` and `map` presentation kinds with strict
   descriptor, marker, tilemap, and cursor-sheet validation plus the shared
   responsive menu renderer and embedding bridge.

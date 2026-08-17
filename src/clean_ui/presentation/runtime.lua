@@ -102,11 +102,28 @@ function Runtime.new(core)
     candidate=nil, canvas=nil, canvasW=nil, canvasH=nil,
     menuWidths=setmetatable({}, { __mode = "k" }), frameId=0,
     frameSerial=0, lastGame=nil }
-  self.fonts = FontCatalog.new(love and love.graphics, {
-    plainPixel=core.config.plainPixelPath
-      or "assets/fonts/plainpixel/PlainPixel-Regular.ttf",
-  })
+  self.fonts = FontCatalog.new(love and love.graphics,
+    core.fontPaths or {
+      plainPixel = core.config.plainPixelPath
+        or "assets/fonts/plainpixel/PlainPixel-Regular.ttf",
+    })
+  local function fitsCandidate(envelope, model, policy, density, priorEntries)
+    local _, font = self.fonts:resolve(policy)
+    if not font then return false end
+    if model.kind == "menu" or model.kind == "device"
+        or model.kind == "map" then
+      return MenuLayout.fits(envelope, model, font, density)
+    elseif model.kind == "dialogue" or model.kind == "choice" then
+      return DialogueLayout.fits(envelope, model, font, density, priorEntries)
+    elseif model.kind == "animation" then
+      return AnimationLayout.fits(envelope, model, font, density)
+    elseif model.kind == "battle" then
+      return battleFits(envelope, model, font, density)
+    end
+    return true
+  end
   local sourceImage = core.mod and core.mod.ui and core.mod.ui.sourceImage
+  local assetApi = core.mod and core.mod.assets
   local function generatedPng(path)
     return type(path) == "string"
       and path:sub(1, 17) == "assets/generated/"
@@ -115,21 +132,35 @@ function Runtime.new(core)
       and not path:find(":", 1, true)
       and path:lower():match("%.png$") ~= nil
   end
-  if type(sourceImage) == "function" then
-    MenuRender.setSourceImageLoader(function(path)
-      return sourceImage(path)
-    end)
-  elseif love and love.graphics
-      and type(love.graphics.newImage) == "function" then
-    -- v0.1.86 exposes the sandboxed graphics facade but predates
-    -- mod.ui.sourceImage. Keep the fallback restricted to the generated PNG
-    -- namespace so sprite-bearing V3 screens remain drop-in without creating
-    -- a general filesystem loader.
-    MenuRender.setSourceImageLoader(function(path)
-      if not generatedPng(path) then return nil, "invalid_source_image" end
+  MenuRender.setSourceImageLoader(function(path, assetPath)
+    if type(sourceImage) == "function" then
+      local ok, image = pcall(sourceImage, path, assetPath)
+      if ok and image ~= nil then return image end
+    end
+    -- A product may expose a deliberately narrow, mod-local asset path for
+    -- authored UI art. This is used by the gender sheet so an unavailable
+    -- generated override can never turn into a font glyph fallback.
+    if type(assetPath) == "string" and assetApi
+        and type(assetApi.image) == "function" then
+      local ok, image = pcall(assetApi.image, assetApi, assetPath)
+      if ok and image ~= nil then return image end
+    end
+    if type(assetPath) == "string" and assetApi
+        and type(assetApi.path) == "function"
+        and love and love.graphics
+        and type(love.graphics.newImage) == "function" then
+      local ok, fullPath = pcall(assetApi.path, assetApi, assetPath)
+      if ok and type(fullPath) == "string" then
+        local imageOk, image = pcall(love.graphics.newImage, fullPath)
+        if imageOk and image ~= nil then return image end
+      end
+    end
+    if generatedPng(path) and love and love.graphics
+        and type(love.graphics.newImage) == "function" then
       return love.graphics.newImage(path)
-    end)
-  end
+    end
+    return nil, "invalid_source_image"
+  end)
 
   function self:enabled()
     return type(self.provider.visibleStack) == "function"
@@ -240,18 +271,35 @@ function Runtime.new(core)
     return model
   end
 
+  function self:attachTextRuns(layout, policy)
+    if type(layout) ~= "table" or type(policy) ~= "table" then
+      return layout
+    end
+    -- Layout geometry remains anchored to the solved/base font.  Renderers
+    -- call this closure for individual constrained strings so multiple font
+    -- sizes can safely coexist in one frame.
+    layout.textPolicy = policy
+    layout.textRun = function(value, maximum, options)
+      return self.fonts:fit(policy, value, maximum, options)
+    end
+    return layout
+  end
+
   function self:measureModel(base, model, font, density, priorEntries)
+    local layout
     if model.kind == "menu" or model.kind == "device"
         or model.kind == "map" then
-      return MenuLayout.measure(base, model, font, density)
+      layout = MenuLayout.measure(base, model, font, density)
     elseif model.kind == "dialogue" or model.kind == "choice" then
-      return DialogueLayout.measure(base, model, font, density, priorEntries)
+      layout = DialogueLayout.measure(base, model, font, density, priorEntries)
     elseif model.kind == "battle" then
-      return BattleLayout.measure(base, model, font, density)
+      layout = BattleLayout.measure(base, model, font, density)
     elseif model.kind == "animation" then
-      return AnimationLayout.measure(base, model, font, density)
+      layout = AnimationLayout.measure(base, model, font, density)
+    else
+      return nil, "unsupported_presentation"
     end
-    return nil, "unsupported_presentation"
+    return self:attachTextRuns(layout, base and base.font)
   end
 
   function self:drawModel(model, layout, font, theme)
@@ -272,12 +320,37 @@ function Runtime.new(core)
     return self:measureModel(base, model, font, density)
   end
 
+  function self:solveModel(model, request, priorEntries)
+    if type(request) ~= "table" then
+      return Solver.solve(request)
+    end
+    if type(model) == "table" and (model.kind == "menu"
+        or model.kind == "device" or model.kind == "map"
+        or model.kind == "dialogue" or model.kind == "choice"
+        or model.kind == "animation" or model.kind == "battle") then
+      request.probe = function(envelope, candidate, density)
+        return fitsCandidate(envelope, model, candidate, density, priorEntries)
+      end
+    end
+    local solved = Solver.solve(request)
+    if solved.ok and solved.value and solved.value.font then
+      local resolved, _, code, message = self.fonts:resolve(
+        solved.value.font)
+      if not resolved then
+        return Result.err(code or "font_unavailable", message)
+      end
+      solved.value.font = resolved
+    end
+    return solved
+  end
+
   function self:lockedMenuWidth(state, base, model, font, density, viewport, safe)
     local width = MenuLayout.contentWidth(base, model, font, density)
     if not width or type(state) ~= "table" then return nil end
     local context = table.concat({ viewport.w, viewport.h, safe.w, safe.h,
       base.scale, font:getHeight(), self:option("ui_size", "auto"),
-      self:option("text_size", "auto"), self:option("font", "plain_pixel"),
+      self:option("text_size", "auto"),
+      base.font and base.font.family or self:option("font", "openttd_mono"),
       density or "auto", base.widthMode or "fixed" }, ":")
     local current = self.menuWidths[state]
     if not current or current.context ~= context then
@@ -355,14 +428,17 @@ function Runtime.new(core)
         solveRequest = { preset=model.preset, viewport=vp,
           safeArea=safe, uiSize=self:option("ui_size", "auto"),
           textSize=self:option("text_size", "auto"),
-          fontFamily=self:option("font", "plain_pixel"),
+          fontFamily=self:option("font", "openttd_mono"),
           density=self:option("density", "auto") }
-        if model.kind == "battle" then
-          solveRequest.probe = function(envelope, candidateFont, density)
-            return battleFits(envelope, model, candidateFont, density)
+        if model.kind == "menu" or model.kind == "device"
+            or model.kind == "map" or model.kind == "dialogue"
+            or model.kind == "choice" or model.kind == "animation"
+            or model.kind == "battle" then
+          solveRequest.probe = function(envelope, candidate, density)
+            return fitsCandidate(envelope, model, candidate, density, entries)
           end
         end
-        solved = Solver.solve(solveRequest)
+        solved = self:solveModel(model, solveRequest, entries)
         if not solved.ok then return failed(solved.error.code) end
         local fontCode, fontMessage
         font, fontCode, fontMessage = self.fonts:get(solved.value.font)
@@ -377,8 +453,13 @@ function Runtime.new(core)
             font, solveRequest.density, vp, safe)
           if logicalWidth then
             solveRequest.logicalWidth = logicalWidth
-            solved = Solver.solve(solveRequest)
+            solved = self:solveModel(model, solveRequest, entries)
             if not solved.ok then return failed(solved.error.code) end
+            font, fontCode, fontMessage = self.fonts:get(solved.value.font)
+            if not font then
+              return failed((fontCode or "font_unavailable") .. ":"
+                .. tostring(fontMessage or ""))
+            end
           end
         end
       end
@@ -401,7 +482,8 @@ function Runtime.new(core)
     end
     local canvas, canvasError = self:canvasFor(w, h)
     if not canvas then return failed(canvasError) end
-    local theme = self.core.themes:get(self:option("theme", "clean"))
+    local theme = self.core:themeFor(self:option("theme", "clean"),
+      self:option("dark_mode", false))
     local rendered = Transaction.run(love.graphics, canvas, function()
       for _, entry in ipairs(entries) do
         local drawOk, drawCode, drawMessage
@@ -451,6 +533,12 @@ function Runtime.new(core)
         end, 90000)
       subscriptions[#subscriptions + 1] = self.mod.events:on(
         "mods.loaded", function() self:invalidate("mods_loaded") end, 90000)
+      subscriptions[#subscriptions + 1] = self.mod.events:on(
+        "screen.pushed", function() self:invalidate("screen_pushed") end,
+        90000)
+      subscriptions[#subscriptions + 1] = self.mod.events:on(
+        "screen.popped", function() self:invalidate("screen_popped") end,
+        90000)
     end
     subscriptions[#subscriptions + 1] = self.mod.hooks:wrap("render.ui.prepare",
       function(nextFn, game, viewport)

@@ -17,7 +17,7 @@ The rebuild is a clean break:
   existing source mods can migrate to V3 without losing presentation support.
 - Existing hook-added Start-menu entries remain generically discoverable, but richer integration uses Clean UI API V3.
 - Gen2 is implemented first; Gen1 follows after Gen2's non-battle UI is stable.
-- Plain Pixel is the default font.
+- OpenTTD Mono is the default font; Plain Pixel and System remain alternatives.
 - Dropdowns, Mod Menus, and Start-menu pinning are foundation features, implemented before broad screen coverage.
 - Product `main.lua` files remain tiny bootstraps. Shared systems and each coherent screen family live in focused modules.
 
@@ -132,22 +132,29 @@ Rules:
 
 ### Font and settings
 
-Plain Pixel is the default and is created only at authored 15-pixel multiples:
+Configured faces are created only at authored family-relative pixel steps.
+OpenTTD Mono is the default and uses a 10-pixel 1× base; Plain Pixel/System
+use a 15-pixel 1× base:
 
 - AUTO
 - 1x
 - 2x
 - 3x
-- 4x
+- 4x (internal authored-style step; not a public choice)
 
-AUTO selects the largest complete whole step that satisfies the physical-size target and all bounds. A manually requested step is capped downward when necessary. System font uses equivalent measured scaling and remains the missing-glyph fallback.
+AUTO selects the largest public complete whole step that satisfies the
+physical-size target and all bounds. A manually requested step is capped
+downward when necessary. Required text is probed at each candidate and falls
+back to the next lower step before rendering; ellipses are reserved for
+explicitly optional fields. System font uses equivalent measured scaling and
+remains the missing-glyph fallback.
 
 The main settings screen contains only:
 
-- Theme: Clean, Dark, High Contrast, plus registered themes
+- Theme: Clean, Red, Blue, Yellow, Gold, Silver, Crystal, High Contrast, plus a Dark Mode toggle that selects each palette's light/dark pair
 - UI Size: Auto, Small, Medium, Large
-- Text Size: Auto, 1x, 2x, 3x, 4x
-- Font: Plain Pixel, System
+- Text Size: Auto, 1x, 2x, 3x
+- Font: OpenTTD Mono, Plain Pixel, System
 - Density: Auto, Comfortable, Compact
 - Pointer & Touch: On/Off
 - Compatibility
@@ -391,7 +398,7 @@ Cinematics and animation-heavy native scenes remain native unless later given an
 - Shows only the running game's production presenters plus shared integration fixtures.
 - Uses stable IDs such as `gen2.party.actions` and `gen1.battle.moves`.
 - Index mode navigates families and fixtures.
-- Preview mode cycles fixture, EMPTY through OVERFLOW content, UI size, font/step, and system/Plain Pixel.
+- Preview mode cycles fixture, EMPTY through OVERFLOW content, UI size, font/step, and OpenTTD Mono/Plain Pixel/System.
 - Includes dropdown short/grouped/disabled/overflow/edge-flip fixtures and Mod Menus/pinning fixtures.
 - Native/deferred screens display exact ID, reason, and planned milestone.
 - Synthetic fixtures never construct live screens, invoke source callbacks, play audio, or mutate saves.
@@ -401,7 +408,9 @@ Cinematics and animation-heavy native scenes remain native unless later given an
 
 - Viewports: 320x180, 640x360, 360x640, 390x844, 1024x768, 1280x720, 1280x1024, 1600x1000, 1920x1080, 2560x1440, 3440x1440, 3840x2160, and 5120x2784.
 - Touch safe areas, portrait, short landscape, desktop, ultrawide, 4K, and 5K.
-- Plain Pixel AUTO and 1x-4x plus System font.
+- OpenTTD Mono, Plain Pixel, and System AUTO/1x-3x, with explicit internal
+  4x retained for authored styles; required text falls back to the next lower
+  fitting step instead of being truncated.
 - Every UI size, density, theme, and maximum combined setting.
 - Stable outer bounds across records, pages, pockets, modes, selections, and embedded prompts.
 - Valid, incomplete, malformed, unknown, custom-draw, and exception-producing contracts.

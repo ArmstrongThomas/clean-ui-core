@@ -75,10 +75,11 @@ ultrawide, 4K, and 5K.
 For every production fixture, matrix coverage combines:
 
 - UI Size Auto, Small, Medium, and Large;
-- Plain Pixel Auto and 1× through 4×;
-- System font;
+- Plain Pixel, System, and OpenTTD Mono Auto and public 1× through 3× steps;
+  explicit internal 4× remains covered as an authored-style font-policy case;
 - Density Auto, Comfortable, and Compact;
-- Clean, Dark, and High Contrast themes;
+- Clean, Red, Blue, Yellow, Gold, Silver, Crystal, and High Contrast themes;
+- Dark Mode off/on for each light/dark palette pair;
 - NORMAL and OVERFLOW content;
 - maximum combined settings.
 
@@ -96,11 +97,14 @@ Every layout result asserts:
 - clipping only in explicit scroll viewports;
 - reachable scroll extent;
 - hit regions inside visible owning regions;
-- Plain Pixel allocations only at 15, 30, 45, or 60 pixels;
+- family-relative font allocations only at Plain Pixel/System 15, 30, 45, or
+  60 pixels, or OpenTTD Mono 10, 20, 30, or 40 pixels;
 - stable outer bounds across content/page/selection changes.
 
 Rendering tests verify that drawing consumes the measured result without a
-second layout pass.
+second layout pass. Image regressions also verify nearest-neighbor filter
+selection, integer destination origins, whole-pixel/reciprocal scaling,
+integer output extents, and crop rendering through the shared sprite path.
 
 ## Dropdown matrix
 

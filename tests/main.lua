@@ -2,6 +2,9 @@ local function filesystemRead(path)
   return love.filesystem.read(path)
 end
 
+io.stdout:setvbuf("no")
+io.stderr:setvbuf("no")
+
 local bootstrapSource = assert(love.filesystem.read("src/clean_ui/bootstrap.lua"))
 local bootstrap = assert(loadstring(bootstrapSource, "@clean_ui/bootstrap.lua"))()
 
@@ -96,8 +99,59 @@ function love.load()
     "dropdown capability is advertised")
   T.equal(select(1, runtime:resetDefaults()), true,
     "settings reset uses the public options writer")
-  T.check(type(modOptions.schema) == "table" and #modOptions.schema == 6,
-    "core defines the six shared settings")
+  T.check(type(modOptions.schema) == "table" and #modOptions.schema == 7,
+    "core defines the seven shared settings")
+  local themeChoices = modOptions.schema[1].choices
+  local expectedChoiceOrder = {
+    "clean", "red", "blue", "yellow", "gold", "silver", "crystal",
+    "high_contrast",
+  }
+  for index, id in ipairs(expectedChoiceOrder) do
+    T.equal(themeChoices[index][2], id,
+      "settings keeps the theme choice order at " .. index)
+  end
+  local expectedThemes = {
+    clean=true, dark=true, high_contrast=true, light_high_contrast=true,
+    red=true, red_dark=true, blue=true, blue_dark=true,
+    yellow=true, yellow_dark=true, gold=true, gold_dark=true,
+    silver=true, silver_dark=true, crystal=true, crystal_dark=true,
+  }
+  for id in pairs(expectedThemes) do
+    local theme = runtime.themes:get(id)
+    T.check(theme.id == id,
+      "theme registry resolves the " .. id .. " theme")
+    local accepted, code = runtime.themes:register({
+      id = "__contrast_check_" .. id, colors = theme.colors,
+    })
+    T.check(accepted, "theme registry accepts readable " .. id
+      .. " contrast palette: " .. tostring(code))
+  end
+  T.equal(#themeChoices, 8, "settings exposes eight base themes")
+  T.equal(modOptions.schema[2].key, "dark_mode",
+    "dark mode is directly below the theme chooser")
+  local fontChoices = modOptions.schema[5].choices
+  local expectedFonts = {
+    "openttd_mono", "plain_pixel", "system",
+  }
+  for index, id in ipairs(expectedFonts) do
+    T.equal(fontChoices[index][2], id,
+      "settings keeps the font choice order at " .. index)
+  end
+  T.equal(#fontChoices, 3, "settings exposes three public font families")
+  T.equal(modOptions.schema[5].default, "openttd_mono",
+    "OpenTTD Mono is the shared default font")
+  T.equal(runtime:themeFor("clean", false).id, "clean",
+    "clean resolves to the light neutral theme")
+  T.equal(runtime:themeFor("clean", true).id, "dark",
+    "dark mode resolves clean to its dark opposite")
+  T.equal(runtime:themeFor("red", false).id, "red",
+    "light red resolves to the base palette")
+  T.equal(runtime:themeFor("red", true).id, "red_dark",
+    "dark mode resolves red to its dark variant")
+  T.equal(runtime:themeFor("high_contrast", false).id, "light_high_contrast",
+    "light mode resolves high contrast to its light variant")
+  T.equal(runtime:themeFor("high_contrast", true).id, "high_contrast",
+    "dark mode resolves high contrast to its dark variant")
   T.check(type(hookWrappers["ui.start_menu.items"]) == "function",
     "core installs the shared Start-menu catalog hook")
   T.check(type(hookWrappers["render.hud"]) == "function"
@@ -358,6 +412,57 @@ function love.load()
     T.check(FontPolicy.validPlainPixelSize(size), "whole Plain Pixel size " .. size)
   end
   T.check(not FontPolicy.validPlainPixelSize(22), "fractional Plain Pixel size rejected")
+  local fontProfiles = {
+    { id="plain_pixel", base=15 }, { id="system", base=15 },
+    { id="openttd_mono", base=10 },
+  }
+  for _, profile in ipairs(fontProfiles) do
+    T.equal(FontPolicy.baseSize(profile.id), profile.base,
+      profile.id .. " keeps its authored 1x base")
+    local candidates = FontPolicy.candidates("2", 1, profile.id)
+    T.equal(candidates[1].family, profile.id,
+      profile.id .. " candidates preserve the selected family")
+    T.equal(candidates[1].physicalPx, profile.base * 2,
+      profile.id .. " 2x uses the family-specific base")
+    T.check(FontPolicy.validSize(profile.id, profile.base * 4),
+      profile.id .. " accepts its 4x size")
+    T.check(not FontPolicy.validSize(profile.id, profile.base * 2 + 1),
+      profile.id .. " rejects fractional/non-step sizes")
+  end
+
+  local FontCatalog = loadModule("text.font_catalog")
+  local catalogGraphics = {}
+  function catalogGraphics.newFont(path, size)
+    local font = { path=path, size=size }
+    function font:getWidth(value)
+      return #tostring(value or "") * self.size * 0.5
+    end
+    function font:getHeight() return self.size end
+    function font:setFilter() end
+    return font
+  end
+  local catalog = FontCatalog.new(catalogGraphics, {
+    openttdMono="assets/fonts/openttd-mono/otm.ttf",
+  })
+  local mixedPolicy = { family="openttd_mono", step=3, physicalPx=30 }
+  local shortRun = catalog:fit(mixedPolicy, "POKEMON", 120)
+  local longRun = catalog:fit(mixedPolicy, "Party Pokemon status", 120)
+  local titleRun = catalog:fit(mixedPolicy, "PARTY", 200,
+    { stepDelta=1 })
+  local captionRun = catalog:fit(mixedPolicy, "caption", 200,
+    { stepDelta=-1 })
+  T.check(shortRun and longRun and shortRun.font ~= longRun.font,
+    "font catalog permits multiple cached faces in one frame")
+  T.equal(shortRun.policy.step, 3,
+    "short text keeps the solved/base font step")
+  T.equal(longRun.policy.step, 1,
+    "only the constrained long text steps down")
+  T.equal(mixedPolicy.step, 3,
+    "per-run fallback does not mutate the frame font policy")
+  T.equal(titleRun.policy.step, 4,
+    "a display style may request the internal authored 4x step")
+  T.equal(captionRun.policy.step, 2,
+    "a caption style may request one smaller step independently")
 
   local Solver = loadModule("layout.solver")
   local large = Solver.solve({ preset = "L", viewport = { x=0,y=0,w=5120,h=2784 },
@@ -369,6 +474,30 @@ function love.load()
     "5K envelope stays inside monitor")
   T.check(FontPolicy.validPlainPixelSize(large.value.font.physicalPx),
     "solver keeps Plain Pixel whole-step")
+  local internalFourX = Solver.solve({ preset = "S",
+    viewport = { x=0, y=0, w=1280, h=720 },
+    safeArea = { x=0, y=0, w=1280, h=720 }, uiSize = "auto",
+    textSize = "4", fontFamily = "openttd_mono" })
+  T.check(internalFourX.ok
+      and internalFourX.value.font.family == "openttd_mono"
+      and internalFourX.value.font.physicalPx == 40,
+    "solver retains explicit internal 4x OpenTTD Mono support")
+  local autoCandidates = FontPolicy.candidates("auto", 4, "openttd_mono")
+  T.equal(autoCandidates[1].step, 3,
+    "AUTO never promotes the hidden internal 4x step")
+  local fallbackSteps = {}
+  local fallback = Solver.solve({ preset = "S",
+    viewport = { x=0, y=0, w=1280, h=720 },
+    safeArea = { x=0, y=0, w=1280, h=720 }, uiSize = "auto",
+    textSize = "3", fontFamily = "openttd_mono",
+    probe = function(_, candidate)
+      fallbackSteps[#fallbackSteps + 1] = candidate.step
+      return candidate.step == 1
+    end })
+  T.check(fallback.ok and fallback.value.font.step == 1,
+    "solver falls back to the next fitting authored font step")
+  T.equal(table.concat(fallbackSteps, ","), "3,2,1",
+    "solver probes lower font steps in descending order")
 
   local battleLarge = Solver.solve({ preset = "BATTLE",
     viewport = { x=0, y=0, w=5120, h=2880 },
@@ -575,6 +704,69 @@ function love.load()
   T.equal(longShell.logical.w, lockedWidth,
     "NAV width stays locked when rows change during one open view")
 
+  local partyRows = {}
+  for index = 1, 6 do
+    partyRows[index] = { id="party." .. index, sourceIndex=index,
+      kind="pokemon", label="MON " .. index }
+  end
+  partyRows[7] = { id="party.back", sourceIndex=7,
+    kind="back", label="CANCEL" }
+  local partyListLayout = MenuLayout.measure({
+    outer={x=0,y=0,w=760,h=540}, scale=1,
+  }, {
+    kind="menu", preset="L", partyLayout="list", title="PARTY",
+    opaque=true, rows=partyRows, selected=2, description="A CHOOSE   B BACK",
+  }, navFont, "comfortable")
+  T.check(partyListLayout.partyList ~= nil
+      and #partyListLayout.partyList.rows == 6
+      and partyListLayout.detailRegion == nil
+      and #partyListLayout.hitRegions == 6,
+    "Gen2 party layout renders six Pokemon rows without the native detail column")
+  T.check(partyListLayout.partyList.rows[2].index == 2
+      and partyListLayout.partyList.rows[2].rect.y
+        > partyListLayout.partyList.rows[1].rect.y,
+    "Gen2 party layout keeps stable source row indices and vertical order")
+
+  local shortPartyLayout = MenuLayout.measure({
+    outer={x=0,y=0,w=760,h=540}, scale=1,
+  }, {
+    kind="menu", preset="L", partyLayout="list", title="PARTY",
+    opaque=true, rows={
+      { id="party.1", sourceIndex=1, kind="pokemon", label="MON 1" },
+      { id="party.2", sourceIndex=2, kind="pokemon", label="MON 2" },
+    }, selected=1, description="A CHOOSE   B BACK",
+  }, navFont, "comfortable")
+  T.check(#shortPartyLayout.partyList.rows == 6
+      and shortPartyLayout.partyList.rows[3].row.kind == "empty"
+      and #shortPartyLayout.hitRegions == 2,
+    "short parties retain six visual slots without inventing selectable rows")
+
+  local summaryRows = {
+    { id="move.1", label="TACKLE" }, { id="move.2", label="LEER" },
+    { id="move.3", label="WATER GUN" }, { id="move.4", label="---",
+      disabled=true },
+  }
+  local summaryLayout = MenuLayout.measure({
+    outer={x=0,y=0,w=760,h=540}, scale=1,
+  }, {
+    kind="menu", preset="L", partyLayout="summary", title="TOTO",
+    opaque=true, purpose="moves", rows=summaryRows, selected=2,
+    pageTabs={
+      { id="journal", label="JOURNAL", sourcePage=1 },
+      { id="moves", label="MOVES", sourcePage=2, selected=true },
+      { id="details", label="DETAILS", sourcePage=3 },
+    }, description="B BACK",
+  }, navFont, "comfortable")
+  T.check(summaryLayout.summary ~= nil and #summaryLayout.tabs == 3
+      and summaryLayout.tabs[1].tab.id == "journal"
+      and summaryLayout.tabs[2].tab.selected
+      and #summaryLayout.summary.moveRows == 4,
+    "Gen2 summary layout reserves the three tabs and four move slots")
+  T.check(summaryLayout.hitRegions[#summaryLayout.hitRegions].role == "party_tab"
+      and summaryLayout.summary.moveInfo.y + summaryLayout.summary.moveInfo.h
+        <= summaryLayout.body.y + summaryLayout.body.h,
+    "Gen2 summary tabs and move information remain inside the fixed envelope")
+
   local richMenu = MenuLayout.measure({
     outer={x=0,y=0,w=760,h=540}, scale=1,
   }, {
@@ -778,6 +970,33 @@ function love.load()
     "cropped sprite keeps nearest-neighbor minification")
   T.equal(imageState.filter[2], "nearest",
     "cropped sprite keeps nearest-neighbor magnification")
+
+  imageState.draws, imageState.quads = {}, {}
+  MenuRender.setSourceImageLoader(function() return fakeImage end)
+  local iconFrameZero = MenuRender.drawSprite(fakeGraphics, {
+    path="party-icon.png", crop={x=0,y=0,w=16,h=16}, frames=2,
+    animation={axis="y", frames=2, frameDuration=16},
+  }, {x=0,y=0,w=32,h=32}, 0)
+  local iconFrameOne = MenuRender.drawSprite(fakeGraphics, {
+    path="party-icon.png", crop={x=0,y=0,w=16,h=16}, frames=2,
+    animation={axis="y", frames=2, frameDuration=16},
+  }, {x=0,y=0,w=32,h=32}, 16)
+  T.equal(iconFrameZero, true,
+    "animated party icon frame zero draws through the shared sprite helper")
+  T.equal(iconFrameOne, true,
+    "animated party icon frame one draws through the shared sprite helper")
+  T.equal(imageState.quads[1].y, 0,
+    "party icon animation starts on the first sheet crop")
+  T.equal(imageState.quads[2].y, 16,
+    "party icon animation advances one 16-step sheet frame")
+  T.equal(MenuRender.textStyles.heading.weight, 2,
+    "shared Core exposes a non-scaled heading text style")
+  T.equal(MenuRender.textStyles.title.stepDelta, 1,
+    "shared Core exposes a larger title text role")
+  T.equal(MenuRender.textStyleOptions("caption").stepDelta, -1,
+    "shared Core converts semantic text roles into per-run font options")
+  T.equal(MenuRender.textStyles.body.weight, 1,
+    "shared Core keeps body text at the authored raster weight")
 
   imageState.draws, imageState.quads = {}, {}
   fakeGraphics.newQuad = nil
@@ -1259,7 +1478,7 @@ function love.load()
     map={
       region="JOHTO",
       rows={{ id="route29", name="ROUTE 29", index=1,
-        x=0, y=0, selected=true }},
+        x=0, y=0, selected=true, nest=true }},
       current={ name="ROUTE 29", index=1 },
       player={ name="ROUTE 29", index=1 },
       graphic={ kind="tilemap", width=2, height=2,
@@ -1269,17 +1488,35 @@ function love.load()
     },
     description="UP/DOWN LANDMARK   B BACK",
   })
+  local namingModel = Content.v3Model({
+    id="naming_preview", kind="menu",
+    schema="clean_ui.v3.presentation.v1", apiVersion=3,
+    preset="XL", opaque=true, rows={},
+    naming={
+      case="upper",
+      entry={text="T×", glyphs={"T", "×"}, sourceLength=2, maxLength=7},
+      keyboard={columns=9, rows={{"A", "×"}},
+        bottom={{label="lower"},{label="DEL"},{label="END"}}},
+      cursor={row=0, col=1, bottomRow=false},
+    },
+    description="A CHOOSE   B DELETE   SELECT CASE   START DONE",
+  })
   T.check(dialogueModel.kind == "dialogue"
       and choiceModel.kind == "choice"
       and animationModel.kind == "animation"
       and deviceModel.kind == "device"
-      and mapModel.kind == "map"
-      and Content.isV3Screen(dialogueModel)
+       and mapModel.kind == "map"
+       and namingModel.kind == "menu"
+       and Content.isV3Screen(dialogueModel)
       and Content.isV3Screen(choiceModel)
       and Content.isV3Screen(animationModel)
-      and Content.isV3Screen(deviceModel)
-      and Content.isV3Screen(mapModel),
-    "V3 direct dialogue, choice, device, map, and animation models are editor-preview screens")
+       and Content.isV3Screen(deviceModel)
+       and Content.isV3Screen(mapModel)
+       and Content.isV3Screen(namingModel),
+     "V3 direct dialogue, choice, device, map, animation, and naming models are editor-preview screens")
+  T.check(namingModel.naming.entry.glyphs[2] == "×"
+      and namingModel.naming.cursor.col == 1,
+    "V3 naming models preserve multi-byte glyph cells and zero-based cursors")
   T.check(Content.v3Model({ id="invalid_dialogue", kind="dialogue",
       preset="XS", lines={} }) == nil,
     "V3 rejects direct presentation models without the canonical schema")
@@ -1291,6 +1528,12 @@ function love.load()
       schema="clean_ui.v3.presentation.v1", apiVersion=3, preset="XS",
       lines={ "OK", 2 } }) == nil,
     "V3 rejects non-text dialogue lines before rendering")
+  T.check(Content.v3Model({ id="sparse_naming", kind="menu",
+      schema="clean_ui.v3.presentation.v1", apiVersion=3, preset="XL",
+      rows={}, naming={entry={text="", glyphs={ [2]="A" }, maxLength=7},
+        keyboard={columns=9, rows={{"A"}},
+          bottom={{label="lower"},{label="DEL"},{label="END"}}}}}) == nil,
+    "V3 rejects sparse naming glyph collections before rendering")
   T.check(Content.v3Model({ id="bad_battle", kind="battle",
       schema="clean_ui.v3.presentation.v1", apiVersion=3, preset="BATTLE",
       player={}, enemy={}, actions={{ id="fight", label="FIGHT" }},
@@ -1304,6 +1547,10 @@ function love.load()
         map={region="JOHTO", rows={}, graphic={kind="tilemap", width=2,
           height=2, sheet={path="map.png", wide=2}, map={0, 1, 2}}} }) == nil,
     "V3 rejects malformed device orientation and incomplete map tile data")
+  T.check(Content.v3Model({ id="bad_nest_marker", kind="map",
+      schema="clean_ui.v3.presentation.v1", apiVersion=3, preset="L",
+      map={region="KANTO", rows={{x=1, y=1, nest="yes"}}} }) == nil,
+    "V3 rejects malformed map nest marker flags")
   T.check(Content.v3Model({ id="bad_overlay", kind="animation",
       schema="clean_ui.v3.presentation.v1", apiVersion=3, preset="ANIMATION",
       animation={id="battle.transition", overlay=true,
@@ -1396,7 +1643,8 @@ function love.load()
   local mapLayout = runtime:measureV3(mapModel, 640, 360, {
     font = love.graphics.newFont(15) })
   T.check(mapLayout and mapLayout.v3Model.kind == "map"
-      and mapLayout.mapView and #mapLayout.mapMarkers == 1,
+      and mapLayout.mapView and #mapLayout.mapMarkers == 1
+      and mapLayout.mapMarkers[1].nest == true,
     "core V3 embedding bridge measures first-class map models")
   local transitionLayout = runtime:measureV3({
     id="transition_preview", kind="animation",
@@ -1529,6 +1777,87 @@ function love.load()
     end
   end
   T.equal(duplicateCount, 2, "duplicate legacy rows remain accessible")
+
+  local Settings = loadModule("integration.settings")
+  local persistedSettings = {}
+  local storageGame = {
+    save = { version = "gen2", meta = { playthroughId = "slot1" } },
+  }
+  local function fallbackSettingsMod()
+    return {
+      game = storageGame,
+      options = {
+        define = function(_, schema) return schema end,
+        get = function() return nil end,
+      },
+      storage = {
+        context = function(_, game)
+          return { gameVersion = game.save.version,
+            playthroughId = game.save.meta.playthroughId }
+        end,
+        read = function(_, _, key)
+          return key == "settings" and persistedSettings or nil
+        end,
+        write = function(_, _, key, value)
+          if key ~= "settings" then return false end
+          persistedSettings = value
+          return true
+        end,
+      },
+    }
+  end
+  local settingsSchema = {{ key = "theme", default = "clean", type = "choice" }}
+  local firstSettingsMod = fallbackSettingsMod()
+  T.equal(select(1, Settings.set(firstSettingsMod, "theme", "dark",
+    settingsSchema)), true,
+    "settings fallback writes through persistent storage when options:set is absent")
+  local reloadedSettingsMod = fallbackSettingsMod()
+  T.equal(Settings.get(reloadedSettingsMod, "theme", settingsSchema), "dark",
+    "settings fallback reloads the persisted value in a new mod session")
+
+  -- The released host may return the default through options:get even after
+  -- Clean UI settings were persisted through the public storage fallback.
+  -- The shell must resolve its theme through Core's settings adapter so the
+  -- Mod Menus page follows the selected theme instead of reverting to Clean.
+  local shellThemeValues = { theme = "yellow", dark_mode = true }
+  local previousSet, previousGame, previousStorage =
+    mod.options.set, mod.game, mod.storage
+  local previousTheme = modOptions.theme
+  mod.options.set = nil
+  modOptions.theme = "clean"
+  mod.game = fakeGame
+  mod.storage = {
+    context = function()
+      return { gameVersion = "gen2", playthroughId = "slot1" }
+    end,
+    read = function(_, _, key)
+      return key == "settings" and shellThemeValues or nil
+    end,
+    write = function(_, _, key, value)
+      if key ~= "settings" then return false end
+      shellThemeValues = value
+      return true
+    end,
+  }
+  T.equal(runtime:setting("theme"), "yellow",
+    "shell theme resolves through the persistent settings fallback")
+  T.equal(runtime:setting("dark_mode"), true,
+    "shell theme reads the persisted dark mode toggle")
+  local observedShellTheme
+  local originalThemeGet = runtime.themes.get
+  runtime.themes.get = function(themes, id)
+    observedShellTheme = id
+    return originalThemeGet(themes, id)
+  end
+  local themeScreen = runtime:openShell("mod_menus", fakeGame)
+  runtime.shell:draw(themeScreen, { width = 640, height = 360 })
+  runtime.themes.get = originalThemeGet
+  T.equal(observedShellTheme, "yellow_dark",
+    "Mod Menus renders the persisted dark palette instead of native default")
+  fakeStack:pop()
+  mod.options.set, mod.game, mod.storage =
+    previousSet, previousGame, previousStorage
+  modOptions.theme = previousTheme
 
   local Transaction = loadModule("surfaces.transaction")
   local state = { color={1,1,1,1}, shader="base", canvas="screen", depth=0 }

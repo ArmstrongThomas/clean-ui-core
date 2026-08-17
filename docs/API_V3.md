@@ -145,7 +145,9 @@ when one is known. Optional `apps`, `activeApp`, `statusBar`, `launcher`, and
 `navigation` fields describe a responsive handheld shell without embedding a
 renderer or callback. `map` models require a data-only `map` descriptor with
 a non-empty `region` and dense marker rows. Optional `current`, `player`, and
-`flyRows` fields preserve source selection state. A native-art tilemap graphic
+`flyRows` fields preserve source selection state. Each marker may also carry
+an optional boolean `nest` flag for a source-provided encounter-area marker;
+the flag is presentation data only. A native-art tilemap graphic
 may include a positive `width`/`height`, a source sheet, dense tile arrays, a
 cursor sheet, and palette metadata; missing art remains a valid fail-open
 state rather than a reason to invent a placeholder graphic.

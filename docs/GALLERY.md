@@ -91,7 +91,7 @@ families or fixtures through deterministic scrolling.
 - Up/Down changes content level.
 - A cycles UI Size.
 - Select cycles Text Size.
-- Start toggles System/Plain Pixel.
+- Start cycles OpenTTD Mono, Plain Pixel, and System.
 - B returns to the index.
 
 Preview settings are held only in Gallery controller memory. They never call

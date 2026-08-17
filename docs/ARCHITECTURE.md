@@ -14,7 +14,9 @@ The architecture must make these properties mechanically testable:
 
 1. Layout is deterministic for the same model, viewport, safe area, settings, and theme.
 2. A screen keeps one outer envelope for its entire open lifetime.
-3. Plain Pixel is created only at 15, 30, 45, or 60 physical pixels.
+3. Configured faces are created only at their authored 1×–4× physical-size
+   ladders; the public chooser exposes AUTO and 1×–3×, while 4× remains an
+   internal authored-style step.
 4. Rendering consumes one measured layout result; drawing never performs a second independent layout pass.
 5. Dropdowns are controlled, modal overlays that cannot resize their parent.
 6. V3 registration is atomic, idempotent, deterministic, and product-scoped
@@ -249,14 +251,14 @@ Stable ordering keys are always explicit. Contract contributions sort by `(prior
 | `geometry/hit_region.lua` | Visible and expanded touch hit geometry. |
 | `geometry/transform.lua` | Logical-to-physical mapping for custom surfaces; core widgets render in physical coordinates. |
 
-All final core-widget coordinates are integer physical pixels. Half-pixel line placement, where needed by LÖVE, is isolated in the painter.
+All final core-widget coordinates are integer physical pixels. Half-pixel line placement, where needed by LÖVE, is isolated in the painter. Core-owned image descriptors are drawn through the shared sprite path, which enables nearest-neighbor filtering and integer-aligned output extents for sprite sheets, icons, tiles, and other raster art.
 
 ### 6.4 Design system
 
 | File | Responsibility |
 |---|---|
 | `design/tokens.lua` | Spacing, radii/cut sizes, line widths, opacity, minimum targets, and semantic colors. |
-| `design/themes.lua` | Built-in Clean, Dark, and High Contrast themes plus validated registered themes. |
+| `design/themes.lua` | Built-in Clean/Dark, High Contrast/Light High Contrast, and Red, Blue, Yellow, Gold, Silver, and Crystal light/dark pairs plus validated registered themes. |
 | `design/contrast.lua` | WCAG relative luminance and 4.5:1 validation for essential text/control pairs. |
 | `design/frames.lua` | Default two-logical-pixel cut-corner frame and validated custom-frame registry. |
 | `design/density.lua` | Auto, Comfortable, and Compact token resolution. |
@@ -282,28 +284,46 @@ Preset tables are copied/frozen at the service boundary. Registered themes may r
 
 | File | Responsibility |
 |---|---|
-| `text/font_catalog.lua` | Lazily creates Plain Pixel and System fonts and caches by family/physical size. |
-| `text/font_policy.lua` | Resolves AUTO/manual whole raster steps and System equivalents. |
+| `text/font_catalog.lua` | Lazily creates Plain Pixel, System, and OpenTTD Mono fonts and caches by family/physical size. |
+| `text/font_policy.lua` | Resolves AUTO/manual whole raster steps against each face's authored base size. |
 | `text/glyphs.lua` | Detects missing glyphs and splits fallback runs. |
 | `text/measure.lua` | Single source of width, height, baseline, and line-height measurements. |
 | `text/wrap.lua` | Deterministic word/grapheme-aware wrapping and explicit newline policy. |
 | `text/truncate.lua` | Ellipsis only where a contract marks text optional/truncatable. |
 | `text/runs.lua` | Produces measured font runs, including System fallback glyphs. |
 
-Plain Pixel font creation is centralized and guarded:
+Font creation is centralized and guarded. The user-facing setting remains a
+discrete family-relative step, while each bundled face keeps its authored base
+size:
 
 ```lua
-local PLAIN_PIXEL_BASE = 15
-local VALID_STEPS = { 1, 2, 3, 4 }
-font = love.graphics.newFont(path, PLAIN_PIXEL_BASE * step)
+local BASE_BY_FAMILY = {
+  plain_pixel = 15,
+  system = 15,
+  openttd_mono = 10,
+}
+local PUBLIC_STEPS = { "auto", 1, 2, 3 }
+local INTERNAL_STEPS = { 1, 2, 3, 4 }
+font = love.graphics.newFont(path, BASE_BY_FAMILY[family] * step)
 ```
 
-No other module may create a Plain Pixel font. `font_policy.lua` returns `{ family, step, physicalPx }`; a test spies on every `newFont` call and rejects any Plain Pixel size outside `{15,30,45,60}`.
+No other module may create a configured Clean UI font. `font_policy.lua`
+returns `{ family, step, physicalPx }`; the authored ladders are Plain Pixel /
+System `{15,30,45,60}` and OpenTTD Mono `{10,20,30,40}`. The public settings
+only expose AUTO/1×/2×/3×; explicit 4× is reserved for authored display
+styles. This avoids fractional scaling and lets the solver measure the
+selected face at its real raster size.
 
-AUTO selection tests candidate steps from 4 down to 1 and accepts the first that satisfies both:
+AUTO selection tests candidate steps from the largest public step down to 1
+and accepts the first that satisfies both:
 
 - the configured physical-size target for the viewport; and
 - a complete layout with no unresolved required overflow.
+
+Every presentation family supplies a probe for required text. If a candidate
+would truncate a required line, the solver retries the next lower step before
+the renderer is allowed to draw. Ellipsis is reserved for fields explicitly
+marked optional/truncatable by their contract.
 
 A manual request is a maximum, not a command to clip: candidates run from the requested step downward. The chosen step is stored in the screen session and remains stable until reopen, viewport/safe-area/orientation change, or a relevant settings/theme revision.
 
@@ -338,7 +358,9 @@ outerHeight  = floor(presetHeight * panelScale)
 
 AUTO `targetScale` is a monotonic function of the safe viewport’s short edge, calibrated so 4K and 5K grow beyond 1080p while small screens remain bounded. Its constants live in `design/tokens.lua`, not presenter code. Small/Medium/Large apply documented multipliers to the same baseline. All results clamp to the safe viewport.
 
-The panel scale may be continuous. Plain Pixel itself remains an unscaled font object at a whole authored step, and all glyph origins are snapped to integer physical pixels.
+The panel scale may be continuous. The selected face remains an unscaled font
+object at a whole authored step, and all glyph origins are snapped to integer
+physical pixels.
 
 #### Overflow order
 
@@ -348,7 +370,7 @@ For every solver candidate:
 2. Wrap wrappable text.
 3. Assign scroll viewports to declared scrollable regions.
 4. Tighten optional spacing and optional chrome.
-5. Try the next lower whole Plain Pixel step, or the next lower measured System size.
+5. Try the next lower whole step for the selected family.
 6. Reject the candidate if required content still overlaps or clips.
 
 Clipping is valid only inside an explicit scroll viewport or for content explicitly marked decorative/optional. A complete result has `overflow.unresolvedRequired == 0`.
@@ -609,7 +631,7 @@ Preview mode:
 - Up/Down: content level.
 - A: UI size.
 - Select: font step.
-- Start: System/Plain Pixel.
+- Start: OpenTTD Mono/Plain Pixel/System.
 - B: index.
 
 QA settings are held in Gallery controller memory and never written to `mod.options`. Fixture descriptors contain data only. Product fixture construction occurs at load time from literal/synthetic data builders that receive no game, mod-save, audio, callback, or source-screen references. Tests inject mutation/audio/callback spies and assert zero calls.
@@ -691,7 +713,8 @@ syntax → dependency graph → unit → integration → contracts → visual �
 - `geometry_rect_test.lua`: finite values, inset/clamp/intersection, edge inclusion.
 - `preset_test.lua`: exact immutable dimensions and BATTLE_WIDE behavior.
 - `scale_test.lua`: monotonic AUTO growth, fit caps, safe bounds, 4K/5K enlargement.
-- `font_policy_test.lua`: every setting and fallback; Plain Pixel only 15/30/45/60.
+- `font_policy_test.lua`: every setting and fallback; all configured faces use
+  only their family-relative 1×–4× ladders.
 - `wrap_test.lua`: long words, Unicode/fallback runs, explicit newlines, empty strings.
 - `layout_solver_test.lua`: overflow order and rejection of unresolved required content.
 - `layout_session_test.lua`: page/record/pocket/selection/modal changes preserve outer bounds and font step.
@@ -742,7 +765,7 @@ For every production fixture, matrix tests combine:
 
 - viewport and representative touch-safe insets;
 - UI Size Auto/Small/Medium/Large;
-- Plain Pixel Auto/1×/2×/3×/4× and System;
+- Plain Pixel, System, and OpenTTD Mono Auto/1×/2×/3×;
 - Density Auto/Comfortable/Compact;
 - Clean/Dark/High Contrast;
 - NORMAL and OVERFLOW content, plus maximum combined settings.
@@ -759,7 +782,7 @@ Geometry snapshots are the portable golden source. Real-render tests supplement 
 - dropdown above/below placement captures;
 - selection/header separation;
 - High Contrast focus visibility;
-- Plain Pixel nearest-neighbor integrity at each step;
+- configured-font nearest-neighbor integrity at each family-relative step;
 - private-surface clipping and shader restoration.
 
 PNG artifacts are emitted on failure but are not the sole pass/fail oracle across graphics drivers.
@@ -818,11 +841,13 @@ Exit criterion: source and a copied vendor tree load identically; syntax and dep
 ### Milestone 0B — deterministic layout and fonts
 
 1. Implement themes/tokens/presets/frame.
-2. Implement font catalog/policy/measurement.
+2. Implement font catalog/policy/measurement for all configured font families.
 3. Implement request, scale, envelope, session, regions, flow/grid/list/details, overflow, and solver.
 4. Run the entire viewport/settings matrix on synthetic component trees.
 
-Exit criterion: no unresolved required overflow in supported matrix fixtures; all Plain Pixel allocations are whole-step; stable-session tests pass.
+Exit criterion: no unresolved required overflow in supported matrix fixtures;
+all configured font allocations are on their family-relative whole-step
+ladders; stable-session tests pass.
 
 ### Milestone 0C — dropdown and interaction foundation
 
@@ -857,7 +882,8 @@ A core release candidate is rejected if any of these are true:
 
 - A module imports across a forbidden dependency layer.
 - A layout path measures text during drawing.
-- A Plain Pixel font is created at a non-multiple of 15 or outside 1×–4×.
+- A configured font is created outside its family-relative 1×–4× ladder, or
+  the public settings expose the internal 4× step as a selectable choice.
 - A page/content change alters a live session’s outer bounds.
 - A dropdown changes a parent layout, loses focus outside the top overlay, or mutates on cancel.
 - A failed V3 replacement partially changes registry indexes.

@@ -68,20 +68,41 @@ documented multipliers on the same baseline and are still capped by `fitCap`.
 The panel scale may be continuous. Final core-widget coordinates are integer
 physical pixels.
 
-## Plain Pixel policy
+## Image and sprite scaling
 
-Plain Pixel is created only at authored sizes:
+All Core-owned image descriptors (including cropped sprite sheets, party
+icons, gender assets, map tiles, and animation sprites) use the shared image
+renderer. It applies nearest-neighbor minification/magnification, snaps the
+destination origin to integer physical pixels, and prefers whole-pixel
+magnification or exact reciprocal reduction (for example 16px to 8px) before
+rounding the final output width and height. If a non-divisible source crop
+cannot satisfy that policy, nearest filtering and integer extents remain the
+safe fallback. Callers should provide the source crop and a measured
+destination rectangle; they must not draw the image directly or scale it again
+in presenter code.
+Native tilemaps apply the same chosen scale to every cell and round the map
+origin once, so responsive rounding cannot create per-column seams.
+
+## Font policy
+
+Configured faces are created only at authored family-relative sizes. Plain
+Pixel and System use 15px at 1×; OpenTTD Mono uses 10px at 1×:
 
 ```text
-1× = 15 px
-2× = 30 px
-3× = 45 px
-4× = 60 px
+Plain Pixel/System: 1× = 15 px, 2× = 30 px, 3× = 45 px, 4× = 60 px
+OpenTTD Mono:       1× = 10 px, 2× = 20 px, 3× = 30 px, 4× = 40 px
 ```
 
-AUTO tries 4× through 1× and chooses the largest complete layout that meets
-the physical-size target and all bounds. A manual step is a requested maximum;
-the solver may cap it downward to prevent required overlap or clipping.
+The public settings expose OpenTTD Mono, Plain Pixel, and System plus AUTO/1×/
+2×/3×. AUTO tries the largest public step through 1× and chooses the largest
+complete layout that meets the physical-size target and all bounds. Explicit
+4× remains an internal authored-style option. A manual step is a requested
+maximum; the solver may cap it downward to prevent required overlap or
+clipping.
+
+Required text is measured as part of each presentation probe. If the selected
+step would truncate a required line, the solver retries the next lower step;
+renderers must not replace that line with an ellipsis.
 
 System font uses the same measured layout contract and missing-glyph fallback.
 Drawing never creates or scales a Plain Pixel font independently.

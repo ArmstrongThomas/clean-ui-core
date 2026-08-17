@@ -1,12 +1,74 @@
 # Clean UI Session Handoff
 
-Last updated: 2026-08-15
+Last updated: 2026-08-16
 
 This is the continuation document for the Clean UI ground-up rebuild. Read
 this file and [the authoritative rebuild plan](CLEAN_UI_REWORK_PLAN.md) in full
 before changing code. The plan owns product scope and architecture; this file
 records the current workspace state, what is actually integrated, and the next
 safe work sequence.
+
+## Latest session update (2026-08-16, released-host settings persistence)
+
+- The official released host exposes `mod.options:define/get` but not the
+  public `mod.options:set` writer. The shared settings adapter now prefers the
+  official writer when available and otherwise persists Clean UI settings
+  through the public `mod.storage` facade for the active playthrough, including
+  the selected-save title-session facade.
+- Both Gen1 and Gen2 vendors were refreshed to Core snapshot
+  `0.1.0-alpha.12-local` at `6a41dd56654fe1dca4b787c6a749684cbc16d39c`.
+  Gen1 scaffold and Gen2's full deterministic suite pass after the refresh.
+- A focused persistence harness passes. The full Core LÖVE runner hung before
+  reporting its first suite result and was stopped; this remains an environment
+  runner issue, not a claimed Core-suite pass. No launcher walkthrough, commit,
+  push, or host-repository change was made.
+
+## Latest session update (2026-08-15, lifecycle compatibility repair)
+
+- The battle deferral commit had removed Core presentation invalidation
+  listeners for `screen.pushed` and `screen.popped`. Those listeners are a
+  shared non-battle lifecycle contract, so they were restored without
+  reactivating any battle renderer or ownership path.
+- Core's full deterministic suite passes 265 checks in each of its seven
+  suites. An isolated Gen2 checkout synced to the current Core snapshot also
+  passes its complete scaffold, including product smoke and responsive
+  coverage. The original Gen2 checkout remains untouched.
+- Gen1's current deterministic scaffold, sandbox, and Core-lock checks remain
+  green. No launcher walkthrough has been performed; live verification is
+  still pending.
+
+## Latest session update (2026-08-15, portable map nest marker)
+
+- The shared V3 `map` marker shape now accepts an optional boolean `nest` flag.
+  The responsive map layout preserves it and the Clean UI renderer draws a
+  distinct diamond marker using the existing focus/accent palette, without
+  adding source callbacks or ownership semantics.
+- Core's seven deterministic suites pass 266 checks each after this additive
+  schema/render change. Gen1's Area TownMap presenter uses the host's public
+  `nestSpecies` and `nests` locations, while incomplete or malformed encounter
+  data fails open. Gen2 remains compatible; its vendor was not changed.
+- No launcher walkthrough, commit, push, or host-repository change was made.
+
+## Latest session update (2026-08-16, shell theme fallback)
+
+- Shared shell rendering now resolves the normal shell, V3 shell, and Gallery
+  preview theme through `Core:setting`, rather than calling the host's
+  `mod.options:get` directly. This keeps Mod Menus and related Clean UI shell
+  surfaces aligned with the public-storage settings fallback.
+- A deterministic Core regression covers a released-host-shaped module where
+  `options:get` returns `clean` while public storage returns `dark`; the Mod
+  Menus draw path must receive `dark`.
+
+## Latest session update (2026-08-16, palette dark mode)
+
+- Added Yellow and finalized the selector as Clean, Red, Blue, Yellow, Gold,
+  Silver, Crystal, and High Contrast, in that order for the six game palettes.
+  A Dark Mode toggle now resolves each base choice to its dark/light variant;
+  Light High Contrast is paired with the existing dark High Contrast palette,
+  and Clean/Dark remain neutral opposites. All built-in variants pass Core
+  contrast validation. Both Gen1 and Gen2 vendors were refreshed from this
+  snapshot; the focused registry and product deterministic suites pass. No
+  launcher walkthrough was performed.
 
 ## Latest session update (2026-08-15, battle architecture deferred)
 
@@ -599,8 +661,9 @@ safe work sequence.
   contracts while source mods migrate to V3.
 - Gen2 non-battle UI is the first implementation priority. Gen1 follows after
   Gen2 is stable.
-- Plain Pixel is the default and may only use authored whole steps 1x, 2x, 3x,
-  or 4x.
+- OpenTTD Mono is the default. Public text steps are AUTO, 1x, 2x, and 3x;
+  explicit 4x remains reserved for authored display styles. Required text
+  falls back to the next lower fitting step rather than being truncated.
 - Stable envelopes never resize while users change pages, Pokemon, pockets,
   selections, modes, or embedded prompts.
 - NAV chooses and locks a 320–440 logical-pixel width from its required content

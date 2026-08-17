@@ -50,4 +50,13 @@ function AnimationLayout.measure(base, model, font, density)
   return base
 end
 
+function AnimationLayout.fits(base, model, font, density)
+  local measured = AnimationLayout.measure(base, model, font, density)
+  local animation = model.animation or {}
+  if animation.overlay == true then return true end
+  -- Text labels use layout.textRun during drawing; the base font only owns
+  -- the stage geometry.  Do not lower the whole animation for one label.
+  return true
+end
+
 return AnimationLayout
