@@ -156,6 +156,26 @@ may include a positive `width`/`height`, a source sheet, dense tile arrays, a
 cursor sheet, and palette metadata; missing art remains a valid fail-open
 state rather than a reason to invent a placeholder graphic.
 
+Document regions may use `contentLayout = "columns"` when a page-specific
+composition needs more than the default two-column flow. A region's
+`preferredWidth` reserves a narrow or fixed-width rail while remaining regions
+share the available space. The reusable `scrollbar` component renders that
+rail from data only:
+
+```lua
+{
+  type = "scrollbar",
+  index = 5,
+  visible = 12,
+  total = 251,
+}
+```
+
+`index` is the zero-based scroll offset, `visible` is the number of visible
+items, and `total` is the number of items in the source collection. The
+component owns only visual affordance; products remain responsible for
+selection, scrolling, and input dispatch.
+
 ### Naming keyboard presentation
 
 A menu presentation may carry an optional `naming` descriptor when the source

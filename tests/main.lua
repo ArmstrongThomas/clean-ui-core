@@ -1587,7 +1587,11 @@ function love.load()
             { label="STATUS", value="OWNED" },
           } },
         } },
+        { id="scroll", role="rail", preferredWidth=28, components={
+          { type="scrollbar", index=2, visible=8, total=24 },
+        } },
       },
+      contentLayout="columns",
       controls={
         { input="a", label="SELECT", action="reference.select" },
         { input="b", label="BACK" },
@@ -1596,8 +1600,9 @@ function love.load()
     },
   })
   T.check(documentModel ~= nil and documentModel.kind == "document"
-      and documentModel.document.regions[1].components[2].type == "badges",
-    "V3 accepts data-only document reference pages")
+      and documentModel.document.regions[1].components[2].type == "badges"
+      and documentModel.document.regions[3].components[1].type == "scrollbar",
+    "V3 accepts data-only document reference pages and scroll rails")
   T.check(Content.v3Model({
       id="bad_document_component", kind="document",
       schema="clean_ui.v3.presentation.v1", apiVersion=3, preset="L",

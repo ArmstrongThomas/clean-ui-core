@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Added a reusable document scrollbar component with proportional thumb,
+  directional arrows, bounded region clipping, and explicit multi-column
+  document composition for list/rail/detail reference pages.
 - Added the first V3 document-page contract and shared renderer/layout slice for
   page-specific reference screens such as Pokédex info, habitat, evolution,
   moves, and machine compatibility. Document pages are data-only; products
