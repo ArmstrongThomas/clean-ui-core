@@ -17,7 +17,8 @@ local function componentHeight(component, font, pad, regionHeight)
   if kind == "image" then
     return math.max(line, math.min(regionHeight, math.floor(regionHeight * 0.58)))
   elseif kind == "text" then
-    return math.max(line, #component.lines * line + pad)
+    local lines = component.renderLines or component.lines
+    return math.max(line, #(lines or {}) * line + pad)
   elseif kind == "metadata" or kind == "list" then
     local count = component.visible or #component.items
     if kind == "metadata" and component.columns then
@@ -93,7 +94,8 @@ local function drawComponent(G, component, rect, layout, font, theme)
     local textX = x + math.floor((tonumber(component.marginLeft) or 0)
       * layout.scale)
     local textWidth = math.max(1, width - (textX - x))
-    for index, line in ipairs(component.lines or {}) do
+    local lines = component.renderLines or component.lines or {}
+    for index, line in ipairs(lines) do
       printText(G, layout, font, theme, line, textX, y
         + (index - 1) * (font:getHeight() + pad * 0.35), textWidth,
         textStyle)
@@ -258,6 +260,16 @@ function DocumentRender.draw(G, model, layout, font, theme)
         if ok ~= true then return nil, code, message end
       else
         local remaining = math.max(1, region.rect.y + region.rect.h - cursor)
+        if component.type == "text" and component.wrap then
+          component.renderLines = {}
+          for _, sourceLine in ipairs(component.lines or {}) do
+            local wrapped = MenuRender.wrapStyledLines(layout, font, sourceLine,
+              region.rect.w - pad * 2, component.style or "body")
+            for _, wrappedLine in ipairs(wrapped) do
+              component.renderLines[#component.renderLines + 1] = wrappedLine
+            end
+          end
+        end
         local desiredHeight = componentHeight(component, font, pad,
           region.rect.h)
         if component.type == "image" then
