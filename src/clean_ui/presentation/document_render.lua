@@ -198,15 +198,26 @@ function DocumentRender.draw(G, model, layout, font, theme)
       G.setScissor(region.rect.x, region.rect.y, region.rect.w, region.rect.h)
     end
     local cursor = region.rect.y
-    for _, component in ipairs(region.source.components or {}) do
+    for componentIndex, component in ipairs(region.source.components or {}) do
       if component.type == "scrollbar" and component.anchor then
         local ok, code, message = drawComponent(G, component, region.rect,
           layout, font, theme)
         if ok ~= true then return nil, code, message end
       else
         local remaining = math.max(1, region.rect.y + region.rect.h - cursor)
-        local height = math.min(remaining,
-          componentHeight(component, font, pad, region.rect.h))
+        local desiredHeight = componentHeight(component, font, pad,
+          region.rect.h)
+        if component.type == "image" then
+          local reserved = 0
+          for following = componentIndex + 1,
+              #(region.source.components or {}) do
+            reserved = reserved + componentHeight(
+              region.source.components[following], font, pad, region.rect.h)
+          end
+          desiredHeight = math.min(desiredHeight,
+            math.max(1, remaining - reserved))
+        end
+        local height = math.min(remaining, desiredHeight)
         local componentRect = {
           x = region.rect.x, y = cursor, w = region.rect.w, h = height,
         }
