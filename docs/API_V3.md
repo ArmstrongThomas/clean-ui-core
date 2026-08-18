@@ -191,6 +191,13 @@ The right slot is aligned to the inside edge of the document header. Header
 slots are presentation-only; products still own source navigation and input
 dispatch.
 
+A content region may use `dock = "bottom-right"` or `dock = "bottom-left"` to
+overlay a fixed-height panel at the corresponding lower corner of the
+document body. Set `preferredHeight` for the panel's logical height; docked
+regions are laid out after normal content regions and therefore render above
+the underlying page panel. This is useful for compact progress, legend, or
+status containers.
+
 ### Naming keyboard presentation
 
 A menu presentation may carry an optional `naming` descriptor when the source

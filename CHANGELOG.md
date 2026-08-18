@@ -4,6 +4,8 @@
 
 - Added independent left/right document header slots so page titles and
   supporting metadata can use separate containers and text sizes.
+- Added reusable bottom-corner document region docks for compact progress and
+  status panels.
 - Added a reusable document scrollbar component with proportional thumb,
   directional arrows, bounded region clipping, and explicit multi-column
   document composition for list/rail/detail reference pages.
