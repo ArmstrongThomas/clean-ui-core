@@ -86,8 +86,16 @@ local function drawComponent(G, component, rect, layout, font, theme)
         + (index - 1) * (font:getHeight() + pad * 0.35), width, "body")
     end
   elseif kind == "badges" then
+    local scissor = {}
+    if type(G.getScissor) == "function" then
+      scissor.x, scissor.y, scissor.w, scissor.h = G.getScissor()
+    end
+    if type(G.setScissor) == "function" then G.setScissor() end
     MenuRender.drawTypeBadges(G, component.values, rect, font, theme,
       layout.scale, component.align)
+    if scissor.x and type(G.setScissor) == "function" then
+      G.setScissor(scissor.x, scissor.y, scissor.w, scissor.h)
+    end
   elseif kind == "metadata" or kind == "list" then
     local first = kind == "list" and (component.scroll or 0) + 1 or 1
     local last = kind == "list" and math.min(#(component.items or {}),
