@@ -62,8 +62,10 @@ function DocumentLayout.measure(base, model, font, _density)
       end
     end
     local remaining = math.max(1, body.w - pad * (columns - 1) - fixed)
-    for index, width in ipairs(widths) do
-      if not width then widths[index] = remaining / math.max(1, flexible) end
+    for index = 1, columns do
+      if not widths[index] then
+        widths[index] = remaining / math.max(1, flexible)
+      end
     end
   end
   local cellHeight = math.max(1, available / math.max(1,
