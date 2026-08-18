@@ -8,7 +8,6 @@ local sourceImageLoader
 local paletteShader
 local paletteShaderFailed = false
 local partyIconClock = 0
-local BADGE_DIAGNOSTIC = true
 
 local TYPE_COLORS = {
   NORMAL={ "#A8A77A", "#20242A" }, FIRE={ "#EE8130", "#FFFFFF" },
@@ -317,14 +316,9 @@ local function drawBadges(G, values, rect, font, theme, scale, palettes,
     if x > rect.x and x + width > rect.x + rect.w then
       x, y = rect.x, y + height + gap
     end
-    if y + height > rect.y + rect.h then
-      if BADGE_DIAGNOSTIC then
-        Color.set(G, "#FF3030")
-        G.rectangle("fill", rect.x, rect.y, math.max(8, scale * 4),
-          math.max(8, scale * 4))
-      end
-      break
-    end
+    local availableHeight = rect.y + rect.h - y
+    if availableHeight <= 0 then break end
+    height = math.min(height, availableHeight)
     local available = math.max(1, rect.x + rect.w - x)
     local badgeActualWidth = fixedWidth or math.min(width, available)
     -- Fixed type/status chips are sized from the longest supported label, so
@@ -332,10 +326,6 @@ local function drawBadges(G, values, rect, font, theme, scale, palettes,
     -- non-fixed badge still gets the legacy fitting behavior.
     local badgeLabel = fixedWidth and label or textFit(font, label,
       math.max(1, badgeActualWidth - pad * 2))
-    if BADGE_DIAGNOSTIC then
-      Color.set(G, "#FFFF00")
-      G.rectangle("fill", x, y, badgeActualWidth, height)
-    end
     drawBadge(G, badgeLabel,
       { x=x, y=y, w=badgeActualWidth, h=height },
       palette, font, scale)

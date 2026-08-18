@@ -4,7 +4,6 @@ local Frame = requireCore("design.frame")
 local MenuRender = requireCore("presentation.menu_render")
 
 local DocumentRender = {}
-local BADGE_DIAGNOSTIC = true
 
 local function printText(G, layout, font, theme, text, x, y, width, style,
     align)
@@ -92,18 +91,6 @@ local function drawComponent(G, component, rect, layout, font, theme)
       scissor.x, scissor.y, scissor.w, scissor.h = G.getScissor()
     end
     if type(G.setScissor) == "function" then G.setScissor() end
-    if BADGE_DIAGNOSTIC then
-      Color.set(G, "#FF00FF")
-      G.rectangle("line", rect.x, rect.y, rect.w, rect.h)
-      G.rectangle("fill", rect.x, rect.y, math.max(3, layout.scale),
-        math.max(3, layout.scale))
-      local values = component.values
-      local count = type(values) == "table" and #values or 0
-      Color.set(G, count > 0 and "#00FFFF" or "#FF3030")
-      G.rectangle("fill", rect.x + math.max(4, layout.scale * 2),
-        rect.y + math.max(4, layout.scale * 2), math.max(8, layout.scale * 4),
-        math.max(8, layout.scale * 4))
-    end
     MenuRender.drawTypeBadges(G, component.values, rect, font, theme,
       layout.scale, component.align)
     if scissor.x and type(G.setScissor) == "function" then
