@@ -198,6 +198,10 @@ regions are laid out after normal content regions and therefore render above
 the underlying page panel. This is useful for compact progress, legend, or
 status containers.
 
+Set `frame = true` on a document region to give it a reusable light clipped
+corner panel border while preserving the region's raised fill. This is useful
+for visually separating list, detail, rail, and docked status containers.
+
 ### Naming keyboard presentation
 
 A menu presentation may carry an optional `naming` descriptor when the source
