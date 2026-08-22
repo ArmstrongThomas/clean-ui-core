@@ -58,7 +58,7 @@ Each product exports:
 ```lua
 mod.exports.cleanUiHost = {
   apiVersion = 3,
-  coreVersion = "0.1.0-alpha.12",
+  coreVersion = "0.1.0-alpha.13",
   productId = "gen2_clean_ui", -- or gen1_clean_ui
   game = "gen2",               -- or gen1
   capabilities = {
@@ -75,6 +75,9 @@ mod.exports.cleanUiHost = {
     gallery = "0.1.0",
     contract_catalog = "0.1.0",
     presentation_models = "0.1.0",
+    document_pages = "0.1.0",
+    semantic_focus = "0.1.0",
+    structured_controls = "0.1.0",
     start_menu_pinning = "0.1.0",
   },
 
@@ -116,7 +119,8 @@ source-owned dispatcher.
 
 The shell also accepts a direct V3 presentation model as a screen descriptor
 for editor previews and source-owned action results. The supported model kinds
-are `menu`, `dialogue`, `choice`, `battle`, `animation`, `device`, and `map`;
+are `menu`, `dialogue`, `choice`, `battle`, `animation`, `device`, `map`, and
+`document`;
 each uses the same
 data-only model vocabulary as the product presentation runtime. For example:
 
@@ -151,6 +155,52 @@ the flag is presentation data only. A native-art tilemap graphic
 may include a positive `width`/`height`, a source sheet, dense tile arrays, a
 cursor sheet, and palette metadata; missing art remains a valid fail-open
 state rather than a reason to invent a placeholder graphic.
+
+Document regions may use `contentLayout = "columns"` when a page-specific
+composition needs more than the default two-column flow. A region's
+`preferredWidth` reserves a narrow or fixed-width rail while remaining regions
+share the available space. The reusable `scrollbar` component renders that
+rail from data only:
+
+```lua
+{
+  type = "scrollbar",
+  index = 5,
+  visible = 12,
+  total = 251,
+}
+```
+
+`index` is the zero-based scroll offset, `visible` is the number of visible
+items, and `total` is the number of items in the source collection. The
+component owns only visual affordance; products remain responsible for
+selection, scrolling, and input dispatch.
+
+Document pages may also provide a separate header slot without consuming a
+body region. The page title remains the large document heading, while
+`header.right` or `header.left` accepts a `heading` or `label` component for
+independently sized supporting text:
+
+```lua
+header = {
+  right = { type = "label", text = "MODE: NEW  ·  001–251" },
+}
+```
+
+The right slot is aligned to the inside edge of the document header. Header
+slots are presentation-only; products still own source navigation and input
+dispatch.
+
+A content region may use `dock = "bottom-right"` or `dock = "bottom-left"` to
+overlay a fixed-height panel at the corresponding lower corner of the
+document body. Set `preferredHeight` for the panel's logical height; docked
+regions are laid out after normal content regions and therefore render above
+the underlying page panel. This is useful for compact progress, legend, or
+status containers.
+
+Set `frame = true` on a document region to give it a reusable light clipped
+corner panel border while preserving the region's raised fill. This is useful
+for visually separating list, detail, rail, and docked status containers.
 
 ### Naming keyboard presentation
 

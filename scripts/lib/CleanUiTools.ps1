@@ -248,5 +248,15 @@ function Get-CleanUiCoreExportPaths {
       Text = $true
     }
   }
+  $assetRoot = Join-Path $root "assets"
+  if (Test-Path -LiteralPath $assetRoot -PathType Container) {
+    foreach ($asset in Get-CleanUiFiles -Root $assetRoot) {
+      $records += [pscustomobject]@{
+        SourcePath = $asset.FullPath
+        ExportPath = Join-Path "assets" $asset.RelativePath
+        Text = $false
+      }
+    }
+  }
   return @($records | Sort-Object -Property ExportPath)
 }
